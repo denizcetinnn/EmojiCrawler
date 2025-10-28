@@ -75,17 +75,17 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
           { id: 'pedestal', name: 'Relic Pedestal', description: 'A mysterious artifact', completed: false }
         ];
         dialogueText = 'You use a key to unlock the door. The treasure room is now open!';
+        
+        // Apply updates first
+        if (Object.keys(updates).length > 0) {
+          setPlayer(p => ({ ...p, ...updates }));
+        }
+        setDialogue(dialogueText);
+          
         updateChoices(room);
       } else {
         dialogueText = 'The door is locked. You need a key to open it.';
-      }
-      return;
-      
-    case 'shop':
-      if (room.shopActive) {
-        setShowShop(true);
-      } else {
-        dialogueText = 'The shopkeeper refuses to serve you after your insulting offer!';
+        setDialogue(dialogueText);
       }
       return;
       

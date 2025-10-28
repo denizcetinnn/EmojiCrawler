@@ -70,7 +70,7 @@ export const createTreasureRoom = (x, y, from, locked = true) => ({
   locked,
   exits: { north: false, east: false, south: false, west: false, [from]: true },
   actions: locked ? [
-    { id: 'locked_door', name: 'Locked Door', description: 'Requires a key', completed: false, mandatory: true, icon: '🔒' }
+    { id: 'locked_door', name: 'Locked Door', description: 'Requires a key', completed: false, mandatory: false, icon: '🔒' }
   ] : [
     { id: 'chest', name: 'Treasure Chest', description: 'Open it', completed: false },
     { id: 'coins', name: 'Gold Pile', description: 'Take the gold', completed: false },

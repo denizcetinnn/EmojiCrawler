@@ -36,6 +36,9 @@ export const useGameActions = (state) => {
     setShowShop
   } = state;
 
+  // Add this to the state destructuring at the top
+  //const [combatLocked, setCombatLocked] = state.combatLocked ? [state.combatLocked, state.setCombatLocked] : [false, () => {}];
+
   const getCurrentRoom = () => {
     return floorLayout.find(r => r.x === state.currentRoomPos.x && r.y === state.currentRoomPos.y);
   };
@@ -66,6 +69,11 @@ export const useGameActions = (state) => {
       if (itemChoice) {
         setItemChoice(null);
       }
+      
+      // Close shop when leaving
+      if (state.showShop) {
+        setShowShop(false);
+      }
     }
   };
 
@@ -81,8 +89,8 @@ export const useGameActions = (state) => {
     
     if (actionIndex === -1) return;
     
-    // Don't mark shop as completed so we can return
-    if (action.id !== 'shop') {
+    // Don't mark shop or locked_door as completed so we can retry
+    if (action.id !== 'shop' && action.id !== 'locked_door') {
       room.actions[actionIndex].completed = true;
     }
   
@@ -146,6 +154,11 @@ export const useGameActions = (state) => {
   };
 
   const handlePlayerMove = (moveName) => {
+
+    if (state.combatLocked) return;
+  
+    state.setCombatLocked(true);
+
     const result = processCombatMove(moveName, player, enemy, playerDefending, playerDodging, enemyDefending, enemyDodging);
     
     const newLog = [...combatLog, ...result.log];
@@ -171,7 +184,15 @@ export const useGameActions = (state) => {
     setEnemyDodging(result.newEnemyDodging);
     
     if (result.shouldTriggerEnemyTurn) {
-      setTimeout(() => handleEnemyTurn(), 1000);
+      setTimeout(() => {
+        handleEnemyTurn();
+        // Unlock after enemy turn completes
+        setTimeout(() => {
+          state.setCombatLocked(false);
+        }, 1100);
+      }, 1000);
+    } else {
+      state.setCombatLocked(false);
     }
   };
 

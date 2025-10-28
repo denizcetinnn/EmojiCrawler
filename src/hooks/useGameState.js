@@ -32,6 +32,7 @@ export const useGameState = () => {
   const [playerDodging, setPlayerDodging] = useState(false);
   const [enemyDefending, setEnemyDefending] = useState(false);
   const [enemyDodging, setEnemyDodging] = useState(false);
+  const [combatLocked, setCombatLocked] = useState(false);
 
   const [dialogue, setDialogue] = useState('');
   const [choices, setChoices] = useState([]);
@@ -86,6 +87,8 @@ export const useGameState = () => {
     setEnemyDefending,
     enemyDodging,
     setEnemyDodging,
+    combatLocked,
+    setCombatLocked,
     
     // UI state
     dialogue,
@@ -103,6 +106,6 @@ export const useGameState = () => {
     goldChoice,
     setGoldChoice,
     showShop,
-    setShowShop
+    setShowShop,
   };
 };
