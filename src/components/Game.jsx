@@ -73,13 +73,31 @@ const Game = () => {
     trashItem,
     handleShopBuy,
     handleShopNegotiate,
-    restartGame
+    restartGame,
+    descendFloor
   } = actions;
+
+  // Handle floor descent event
+  useEffect(() => {
+    const handleDescend = () => {
+      descendFloor();
+    };
+
+    window.addEventListener('descendFloor', handleDescend);
+    return () => window.removeEventListener('descendFloor', handleDescend);
+  }, [descendFloor]);
 
   return (
     <div className="w-full h-screen bg-gray-900 text-white flex">
       <div className="w-2/5 p-6 flex flex-col gap-4 overflow-y-auto border-r border-gray-700">
-        <h1 className="text-3xl font-bold mb-2">The Dungeon Below</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold">The Dungeon Below</h1>
+          {gameState === 'playing' && (
+            <div className="text-xl font-semibold text-purple-400">
+              Floor {state.currentFloor}
+            </div>
+          )}
+        </div>
         
         <div className="bg-gray-800 p-4 rounded-lg flex-shrink-0">
           {gameState === 'intro' && (
@@ -148,14 +166,15 @@ const Game = () => {
               )}
               
               {!showSkillTree && !showInventory && !showMap && !itemChoice && !goldChoice && !showShop && (
-                <ActionsList 
+                <ActionsList
                   choices={choices}
                   onAction={handleAction}
                   onShowSkillTree={() => setShowSkillTree(true)}
                   onShowInventory={() => setShowInventory(true)}
                   onShowMap={() => setShowMap(true)}
                   player={player}
-                  onDescend={actions.descendFloor}
+                  onDescend={descendFloor}
+                  currentRoom={getCurrentRoom()}
                 />
               )}
             </>

@@ -1,6 +1,9 @@
-const ActionsList = ({ choices, onAction, onShowSkillTree, onShowInventory, onShowMap, player, onDescend }) => {
+const ActionsList = ({ choices, onAction, onShowSkillTree, onShowInventory, onShowMap, player, onDescend, currentRoom }) => {
     const actionChoices = choices.filter(c => c.type !== 'move');
-    
+
+    // Show descent button only if in a boss room where the boss has been defeated
+    const showDescentButton = currentRoom?.type === 'boss' && currentRoom?.cleared && player.defeatedBoss;
+
     return (
       <div className="space-y-2">
         {actionChoices.map((choice, idx) => (
@@ -20,8 +23,8 @@ const ActionsList = ({ choices, onAction, onShowSkillTree, onShowInventory, onSh
             </div>
           </button>
         ))}
-        
-        {player.defeatedBoss && (
+
+        {showDescentButton && (
           <button
             onClick={onDescend}
             className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-white px-4 py-3 rounded transition-colors font-bold border-2 border-yellow-400"

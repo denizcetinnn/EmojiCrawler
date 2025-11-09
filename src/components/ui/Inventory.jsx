@@ -27,9 +27,14 @@ const Inventory = ({ player, onEquipItem, onTrashItem, onClose }) => {
           </div>
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Armor: {player.equipment.armor
-              ? `${player.equipment.armor.name} (+${player.equipment.armor.defense} def)`
-              : 'None'}
+            <div>
+              <div>Armor: {player.equipment.armor
+                ? `${player.equipment.armor.name} (+${player.equipment.armor.defense} def)`
+                : 'None'}</div>
+              {player.equipment.armor && player.equipment.armor.description && (
+                <div className="text-xs text-gray-400 ml-5">{player.equipment.armor.description}</div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -53,7 +58,7 @@ const Inventory = ({ player, onEquipItem, onTrashItem, onClose }) => {
                     <div className="text-xs text-gray-400">
                       {item.type === 'weapon'
                         ? `+${item.damage} damage | Range ${item.range} | ${item.apCost} AP`
-                        : `+${item.defense} defense`}
+                        : `+${item.defense} defense | ${item.description || ''}`}
                     </div>
                   </div>
                   <div className="flex gap-1">

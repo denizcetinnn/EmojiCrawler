@@ -1,7 +1,7 @@
 const SkillTree = ({ player, onSpendPoint, onClose }) => {
     const statDescriptions = {
       str: 'Increases damage',
-      dex: 'Increases crit & dodge',
+      dex: '+1 AP per 3 DEX, increases crit & dodge',
       int: 'Reveals traps & risks',
       cha: 'Better shop prices'
     };

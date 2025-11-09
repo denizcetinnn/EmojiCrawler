@@ -5,6 +5,7 @@ export const useGameState = () => {
   const [playthroughCount, setPlaythroughCount] = useState(0);
   const [currentRoomPos, setCurrentRoomPos] = useState(null);
   const [floorLayout, setFloorLayout] = useState([]);
+  const [currentFloor, setCurrentFloor] = useState(1);
   
   const [player, setPlayer] = useState({
     hp: 10,
@@ -64,6 +65,8 @@ export const useGameState = () => {
     setCurrentRoomPos,
     floorLayout,
     setFloorLayout,
+    currentFloor,
+    setCurrentFloor,
     
     // Player state
     player,

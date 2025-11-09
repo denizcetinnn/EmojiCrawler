@@ -2,6 +2,7 @@ import { WEAPONS, getRandomWeapon } from '../data/weapons';
 import { ARMOR, getRandomArmor } from '../data/armor';
 import { getRandomRelic } from '../data/relics';
 import { getSpiderEnemy } from '../data/enemies';
+import { getRandomFloor2Enemy } from '../data/floor2Enemies';
 import { randomInt } from '../utils/helpers';
 import { calculateLevel } from '../utils/calculations';
 
@@ -172,6 +173,285 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
       setShowShop(true);
       dialogueText = 'The mysterious merchant shows you their wares...';
       setDialogue(dialogueText);
+      return;
+
+    // FLOOR 2 EVENTS
+    case 'altar_sacrifice':
+      if (player.hp > 5) {
+        updates.hp = player.hp - 5;
+        const relic = getRandomRelic();
+        setItemChoice({
+          item: relic,
+          message: `You offer your blood to the altar. ${relic.name} materializes before you!`
+        });
+      } else {
+        dialogueText = 'You don\'t have enough health to make this sacrifice.';
+      }
+      break;
+
+    case 'altar_desecrate':
+      if (player.stats.str >= 5) {
+        const xpGain = randomInt(40, 60);
+        const newXp = player.xp + xpGain;
+        const newLevel = calculateLevel(newXp);
+        const leveledUp = newLevel > player.level;
+        updates.xp = newXp;
+        dialogueText = `You destroy the cursed altar! Gained ${xpGain} XP!`;
+        if (leveledUp) {
+          updates.level = newLevel;
+          updates.skillPoints = player.skillPoints + 2;
+          dialogueText += ` Level up! Now level ${newLevel}!`;
+        }
+      } else {
+        dialogueText = 'You lack the strength to destroy the altar. (STR 5+ required)';
+      }
+      break;
+
+    case 'altar_ignore':
+      dialogueText = 'You wisely leave the cursed altar alone.';
+      break;
+
+    case 'contract_accept':
+      if (player.maxHp > 10) {
+        updates.maxHp = player.maxHp - 10;
+        updates.hp = Math.min(player.hp, updates.maxHp);
+        const weapon = getRandomWeapon(5); // Legendary weapon
+        setItemChoice({
+          item: weapon,
+          message: `The demon grins wickedly as you sign. You feel your life force drain away, but gain ${weapon.name}!`
+        });
+      } else {
+        dialogueText = 'The demon laughs. "Your soul is too weak for this bargain."';
+      }
+      break;
+
+    case 'contract_banish':
+      if (player.stats.int >= 6) {
+        const gold = randomInt(80, 120);
+        setGoldChoice(gold);
+        dialogueText = 'Your magical knowledge lets you banish the demon and claim its hoard!';
+      } else {
+        dialogueText = 'Your attempt to banish the demon fails. It mocks your weakness. (INT 6+ required)';
+      }
+      break;
+
+    case 'contract_refuse':
+      dialogueText = 'The demon vanishes in disappointment.';
+      break;
+
+    case 'library_study':
+      if (player.gold >= 50) {
+        updates.gold = player.gold - 50;
+        updates.skillPoints = player.skillPoints + 3;
+        dialogueText = 'You study the ancient tomes intensely. Gained 3 skill points!';
+      } else {
+        dialogueText = 'The knowledge here costs 50 gold. You cannot afford it.';
+      }
+      break;
+
+    case 'library_steal':
+      if (player.stats.dex >= 5) {
+        updates.skillPoints = player.skillPoints + 2;
+        dialogueText = 'You stealthily pocket a valuable tome. Gained 2 skill points!';
+      } else {
+        const damage = randomInt(8, 12);
+        updates.hp = player.hp - damage;
+        dialogueText = `You trigger a magical ward! Lost ${damage} HP!`;
+        if (updates.hp <= 0) {
+          updates.hp = 0;
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('playerDeath'));
+          }, 500);
+        }
+      }
+      break;
+
+    case 'library_leave':
+      dialogueText = 'You leave the library, its secrets remaining hidden.';
+      break;
+
+    case 'torture_search':
+      const safeGold = randomInt(30, 50);
+      setGoldChoice(safeGold);
+      dialogueText = 'You carefully search the room, avoiding traps.';
+      break;
+
+    case 'torture_rush':
+      const bigGold = randomInt(60, 100);
+      const trapDamage = randomInt(5, 10);
+      updates.hp = player.hp - trapDamage;
+      updates.gold = player.gold + bigGold;
+      dialogueText = `You grab everything! Gained ${bigGold} gold but triggered traps! Lost ${trapDamage} HP!`;
+      if (updates.hp <= 0) {
+        updates.hp = 0;
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('playerDeath'));
+        }, 500);
+      }
+      break;
+
+    case 'torture_prisoner':
+      const prisonerKey = Math.random() < 0.5;
+      if (prisonerKey) {
+        updates.keys = (player.keys || 0) + 1;
+        dialogueText = 'The grateful prisoner gives you a key before fleeing!';
+      } else {
+        const relic = getRandomRelic();
+        setItemChoice({
+          item: relic,
+          message: 'The grateful prisoner gives you their only possession before fleeing!'
+        });
+      }
+      break;
+
+    case 'summon_fight':
+      const eliteEnemy = getRandomFloor2Enemy('late');
+      startCombat(eliteEnemy);
+      return;
+
+    case 'summon_disrupt':
+      const magicRelic = getRandomRelic();
+      setItemChoice({
+        item: magicRelic,
+        message: 'You disrupt the summoning circle and absorb its power!'
+      });
+      break;
+
+    case 'summon_leave':
+      dialogueText = 'You decide not to tempt fate.';
+      break;
+
+    case 'fountain_drink':
+      const fountainRoll = Math.random();
+      if (fountainRoll < 0.4) {
+        const heal = randomInt(15, 25);
+        updates.hp = Math.min(player.hp + heal, player.maxHp);
+        dialogueText = `The dark water restores your vitality! Healed ${heal} HP!`;
+      } else if (fountainRoll < 0.7) {
+        const damage = randomInt(10, 15);
+        updates.hp = player.hp - damage;
+        dialogueText = `The water burns like acid! Lost ${damage} HP!`;
+        if (updates.hp <= 0) {
+          updates.hp = 0;
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('playerDeath'));
+          }, 500);
+        }
+      } else {
+        const statBoost = ['str', 'dex', 'int'][Math.floor(Math.random() * 3)];
+        updates.stats = { ...player.stats, [statBoost]: player.stats[statBoost] + 1 };
+        dialogueText = `The water grants you power! ${statBoost.toUpperCase()} +1!`;
+      }
+      break;
+
+    case 'fountain_purify':
+      updates.hp = Math.min(player.hp + 10, player.maxHp);
+      dialogueText = 'You feel cleansed. Restored 10 HP and removed any curses.';
+      break;
+
+    case 'fountain_empower':
+      if (player.hp > 3) {
+        updates.hp = player.hp - 3;
+        updates.stats = {
+          str: player.stats.str + 1,
+          dex: player.stats.dex + 1,
+          int: player.stats.int + 1
+        };
+        dialogueText = 'Dark power surges through you! All stats +1! Lost 3 HP.';
+      } else {
+        dialogueText = 'You don\'t have enough health for this ritual.';
+      }
+      break;
+
+    case 'lab_experiment':
+      const expRoll = Math.random();
+      if (expRoll < 0.33) {
+        updates.maxHp = player.maxHp + 10;
+        updates.hp = player.hp + 10;
+        dialogueText = 'The experiment succeeds! Max HP +10!';
+      } else if (expRoll < 0.66) {
+        const potion = { name: 'Greater Health Potion', type: 'potion', effect: 'Restore 25 HP', healAmount: 25, value: 50 };
+        updates.potions = [...(player.potions || []), potion, potion, potion];
+        dialogueText = 'You brew 3 Greater Health Potions!';
+      } else {
+        const expDamage = randomInt(8, 15);
+        updates.hp = player.hp - expDamage;
+        dialogueText = `The experiment explodes! Lost ${expDamage} HP!`;
+        if (updates.hp <= 0) {
+          updates.hp = 0;
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('playerDeath'));
+          }, 500);
+        }
+      }
+      break;
+
+    case 'lab_loot':
+      const labGold = randomInt(40, 70);
+      const potion = { name: 'Greater Health Potion', type: 'potion', effect: 'Restore 25 HP', healAmount: 25, value: 50 };
+      updates.gold = player.gold + labGold;
+      updates.potions = [...(player.potions || []), potion];
+      dialogueText = `Found ${labGold} gold and a Greater Health Potion!`;
+      break;
+
+    case 'lab_destroy':
+      const xpGain2 = randomInt(50, 80);
+      const newXp2 = player.xp + xpGain2;
+      const newLevel2 = calculateLevel(newXp2);
+      const leveledUp2 = newLevel2 > player.level;
+      updates.xp = newXp2;
+      dialogueText = `You destroy the evil laboratory! Gained ${xpGain2} XP!`;
+      if (leveledUp2) {
+        updates.level = newLevel2;
+        updates.skillPoints = player.skillPoints + 2;
+        dialogueText += ` Level up! Now level ${newLevel2}!`;
+      }
+      break;
+
+    case 'portal_enter':
+      const portalRoll = Math.random();
+      if (portalRoll < 0.5) {
+        const relic = getRandomRelic();
+        setItemChoice({
+          item: relic,
+          message: 'You emerge from the void with a powerful artifact!'
+        });
+      } else {
+        const voidDamage = randomInt(12, 20);
+        updates.hp = player.hp - voidDamage;
+        dialogueText = `The void tears at your essence! Lost ${voidDamage} HP!`;
+        if (updates.hp <= 0) {
+          updates.hp = 0;
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('playerDeath'));
+          }, 500);
+        } else {
+          const gold = randomInt(50, 100);
+          updates.gold = player.gold + gold;
+          dialogueText += ` But you found ${gold} gold in the void!`;
+        }
+      }
+      break;
+
+    case 'portal_seal':
+      if (player.stats.int >= 7) {
+        const relic = getRandomRelic();
+        setItemChoice({
+          item: relic,
+          message: 'You seal the portal using advanced magic! The void energy condenses into an artifact!'
+        });
+      } else {
+        dialogueText = 'You lack the magical knowledge to seal this portal. (INT 7+ required)';
+      }
+      break;
+
+    case 'portal_avoid':
+      dialogueText = 'You back away from the terrifying portal.';
+      break;
+
+    case 'descend':
+      // This will be handled by the Game component to generate new floor
+      window.dispatchEvent(new CustomEvent('descendFloor'));
       return;
 
     default:

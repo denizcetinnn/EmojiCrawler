@@ -81,6 +81,10 @@ export function initializeCombat(player, enemies, isBoss = false) {
     log: [],
     turnCount: 0,
     combatActive: true,
+    firstAttackUsed: false, // Track if first attack has been made (for first_strike_immunity relic)
+    lastStandUsed: false, // Track if last stand has been used (for last_stand relic)
+    secondWindUsed: false, // Track if second wind has been used (for second_wind relic)
+    revengeTurnsLeft: 0, // Track revenge buff duration
   };
 
   // Add initial log message
@@ -127,6 +131,30 @@ export function processPlayerMove(state, direction) {
     return { success: false, message: 'Tile is occupied!' };
   }
 
+  // Knockback Boots - push adjacent enemies when moving
+  const knockbackRelic = player.relics?.find(r => r.type === 'knockback_move');
+  if (knockbackRelic) {
+    const adjacentToNew = getAdjacentPositions(newPos);
+    adjacentToNew.forEach(pos => {
+      const enemy = state.enemies.find(e => e.position.x === pos.x && e.position.y === pos.y && e.hp > 0);
+      if (enemy) {
+        const pushDest = getPushDestination(newPos, enemy.position, 1);
+        if (
+          pushDest.x >= 0 &&
+          pushDest.x < state.gridSize &&
+          pushDest.y >= 0 &&
+          pushDest.y < state.gridSize &&
+          !state.grid[pushDest.y][pushDest.x].occupied
+        ) {
+          state.grid[enemy.position.y][enemy.position.x].occupied = null;
+          state.grid[pushDest.y][pushDest.x].occupied = enemy.id;
+          enemy.position = pushDest;
+          addLog(state, `You shove ${enemy.name} away!`);
+        }
+      }
+    });
+  }
+
   // Update grid
   state.grid[player.position.y][player.position.x].occupied = null;
   state.grid[newPos.y][newPos.x].occupied = 'player';
@@ -134,6 +162,27 @@ export function processPlayerMove(state, direction) {
   // Update player position and facing
   player.position = newPos;
   player.facing = direction;
+
+  // Check for Coward's Charm - bonus AP when fleeing from adjacent enemy
+  const cowardRelic = player.relics?.find(r => r.type === 'retreat');
+  if (cowardRelic) {
+    const oldAdjacentEnemies = getAdjacentPositions({x: player.position.x - direction.dx, y: player.position.y - direction.dy});
+    const hadAdjacentEnemy = oldAdjacentEnemies.some(pos => {
+      return state.enemies.some(e => e.position.x === pos.x && e.position.y === pos.y && e.hp > 0);
+    });
+
+    const newAdjacentEnemies = getAdjacentPositions(newPos);
+    const hasAdjacentEnemy = newAdjacentEnemies.some(pos => {
+      return state.enemies.some(e => e.position.x === pos.x && e.position.y === pos.y && e.hp > 0);
+    });
+
+    // If we had an adjacent enemy before moving but don't now, we're fleeing
+    if (hadAdjacentEnemy && !hasAdjacentEnemy) {
+      player.currentAP += (cowardRelic.apBonus || 1);
+      addLog(state, 'You flee! Coward\'s Charm grants bonus AP!');
+    }
+  }
+
   player.currentAP -= 1;
 
   addLog(state, `You move ${direction.name}.`);
@@ -156,7 +205,12 @@ export function processPlayerAttack(state, targetEnemy, selectedWeapon = null) {
   const rangeBonus = hasRelicOfType(player.relics, 'range')
     ? player.relics.find(r => r.type === 'range').rangeBonus
     : 0;
-  const effectiveRange = weapon.range + rangeBonus;
+
+  // Giant's Strength - reduces weapon range
+  const giantRelic = player.relics?.find(r => r.type === 'stat_penalty');
+  const rangePenalty = giantRelic ? (giantRelic.rangeReduction || 0) : 0;
+
+  const effectiveRange = Math.max(1, weapon.range + rangeBonus - rangePenalty);
 
   if (!isInRange(player.position, targetEnemy.position, effectiveRange)) {
     return { success: false, message: 'Target out of range!' };
@@ -200,11 +254,62 @@ export function processPlayerAttack(state, targetEnemy, selectedWeapon = null) {
     // Apply weapon special effects
     applyWeaponEffects(state, weapon, player, enemy, damageResult);
 
+    // Apply relic effects (poison_all, cleave, etc.)
+    applyRelicCombatEffects(state, player, enemy);
+
+    // Grappling Hook - pull ranged enemies closer
+    const grappleRelic = player.relics?.find(r => r.type === 'pull_ranged');
+    if (grappleRelic && weapon.range > 1) {
+      const distance = getDistance(player.position, enemy.position);
+      if (distance > 1 && enemy.hp > 0) {
+        const pullDist = Math.min(grappleRelic.pullDistance || 2, distance - 1);
+        for (let i = 0; i < pullDist; i++) {
+          const direction = {
+            dx: Math.sign(player.position.x - enemy.position.x),
+            dy: Math.sign(player.position.y - enemy.position.y),
+          };
+          const pullDest = {
+            x: enemy.position.x + direction.dx,
+            y: enemy.position.y + direction.dy,
+          };
+          if (
+            pullDest.x >= 0 &&
+            pullDest.x < state.gridSize &&
+            pullDest.y >= 0 &&
+            pullDest.y < state.gridSize &&
+            !state.grid[pullDest.y][pullDest.x].occupied
+          ) {
+            state.grid[enemy.position.y][enemy.position.x].occupied = null;
+            state.grid[pullDest.y][pullDest.x].occupied = enemy.id;
+            enemy.position = pullDest;
+          } else {
+            break; // Stop if blocked
+          }
+        }
+        addLog(state, `You pull ${enemy.name} closer!`);
+      }
+    }
+
     // Check if enemy died
     if (enemy.hp <= 0) {
       defeatedEnemies.push(enemy);
     }
   });
+
+  // Chain Lightning - chance to hit another enemy
+  const chainRelic = player.relics?.find(r => r.type === 'chain');
+  if (chainRelic && Math.random() < chainRelic.chainChance) {
+    const aliveEnemies = state.enemies.filter(e => e.hp > 0 && !affectedEnemies.includes(e));
+    if (aliveEnemies.length > 0) {
+      const chainTarget = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+      const chainDamage = Math.floor(primaryDamage / 2);
+      chainTarget.hp -= chainDamage;
+      addLog(state, `Lightning chains to ${chainTarget.name} for ${chainDamage} damage!`);
+      if (chainTarget.hp <= 0) {
+        defeatedEnemies.push(chainTarget);
+      }
+    }
+  }
 
   // Handle defeated enemies
   defeatedEnemies.forEach(enemy => {
@@ -318,6 +423,40 @@ function getAffectedEnemies(state, weapon, attackerPos, targetPos) {
 function calculateCombatDamage(attacker, defender, weapon, state) {
   let damage = weapon.damage + (attacker.stats.str || 0);
 
+  // Glass Cannon - bonus damage
+  const glassCannonRelic = attacker.relics?.find(r => r.type === 'glass_cannon');
+  if (glassCannonRelic) {
+    damage += glassCannonRelic.damageBonus || 5;
+  }
+
+  // Rage - damage per missing HP
+  const rageRelic = attacker.relics?.find(r => r.type === 'rage');
+  if (rageRelic) {
+    const missingHP = attacker.maxHp - attacker.hp;
+    const rageBonus = Math.min(missingHP * rageRelic.damagePerMissingHP, rageRelic.maxBonus);
+    damage += rageBonus;
+  }
+
+  // Revenge Token - bonus damage after taking damage
+  if (state.revengeTurnsLeft > 0) {
+    const revengeRelic = attacker.relics?.find(r => r.type === 'revenge');
+    if (revengeRelic) {
+      damage += revengeRelic.damageBonus || 3;
+    }
+  }
+
+  // Battle Standard - bonus damage for each nearby enemy
+  const battleStandardRelic = attacker.relics?.find(r => r.type === 'surrounded_bonus');
+  if (battleStandardRelic) {
+    const nearbyRange = battleStandardRelic.range || 2;
+    const nearbyEnemies = state.enemies.filter(e => {
+      const distance = getDistance(attacker.position, e.position);
+      return e.hp > 0 && distance <= nearbyRange;
+    });
+    const bonusDamage = nearbyEnemies.length * (battleStandardRelic.damagePerEnemy || 1);
+    damage += bonusDamage;
+  }
+
   // Check for backstab
   const isBack = isBackstab(attacker.position, defender.position, defender.facing);
   const hasBackstabRelic = hasRelicOfType(attacker.relics, 'backstab');
@@ -348,6 +487,19 @@ function calculateCombatDamage(attacker, defender, weapon, state) {
   // Apply weapon backstab multiplier if it has one
   if (isBack && weapon.backstabMultiplier) {
     damage *= weapon.backstabMultiplier;
+  }
+
+  // Execute - bonus damage to low HP enemies
+  const executeRelic = attacker.relics?.find(r => r.type === 'execute');
+  if (executeRelic && (defender.hp / defender.maxHp) < executeRelic.hpThreshold) {
+    damage *= (1 + executeRelic.damageBonus);
+  }
+
+  // Random damage (Gambler's Dice)
+  const randomRelic = attacker.relics?.find(r => r.type === 'random_damage');
+  if (randomRelic) {
+    const multiplier = randomRelic.minMultiplier + Math.random() * (randomRelic.maxMultiplier - randomRelic.minMultiplier);
+    damage *= multiplier;
   }
 
   // Apply defender's defense
@@ -432,6 +584,8 @@ function applyWeaponEffects(state, weapon, attacker, target, damageResult) {
 
 // Handle enemy defeat
 function handleEnemyDefeat(state, enemy) {
+  const enemyPos = { ...enemy.position };
+
   // Clear from grid
   state.grid[enemy.position.y][enemy.position.x].occupied = null;
 
@@ -449,6 +603,17 @@ function handleEnemyDefeat(state, enemy) {
     addLog(state, `You heal for ${healAmount} HP!`);
   }
 
+  // Shadow Step - teleport to killed enemy
+  const shadowStepRelic = state.player.relics?.find(r => r.type === 'kill_teleport');
+  if (shadowStepRelic && !state.grid[enemyPos.y][enemyPos.x].occupied) {
+    // Clear player's current position
+    state.grid[state.player.position.y][state.player.position.x].occupied = null;
+    // Move player to enemy's position
+    state.player.position = enemyPos;
+    state.grid[enemyPos.y][enemyPos.x].occupied = 'player';
+    addLog(state, 'You vanish and reappear at the fallen enemy!');
+  }
+
   // Check if combat is over
   if (state.enemies.length === 0) {
     state.combatActive = false;
@@ -458,8 +623,28 @@ function handleEnemyDefeat(state, enemy) {
 
 // End player turn and start enemy turns
 export function endPlayerTurn(state) {
+  // Second Wind - restore full AP when below threshold (once per combat)
+  const secondWindRelic = state.player.relics?.find(r => r.type === 'second_wind');
+  if (secondWindRelic && !state.secondWindUsed) {
+    const hpPercent = state.player.hp / state.player.maxHp;
+    if (hpPercent < secondWindRelic.hpThreshold) {
+      state.secondWindUsed = true;
+      state.player.currentAP = state.player.maxAP;
+      addLog(state, 'Second Wind activates! Full AP restored!');
+      return state; // Don't reset AP normally if Second Wind triggered
+    }
+  }
+
   // Reset player AP for next turn
   state.player.currentAP = state.player.maxAP;
+
+  // Death Pact - lose HP per turn for bonus AP
+  const deathPactRelic = state.player.relics?.find(r => r.type === 'life_drain_ap');
+  if (deathPactRelic) {
+    const hpCost = deathPactRelic.hpCostPerTurn || 1;
+    state.player.hp = Math.max(1, state.player.hp - hpCost); // Never kill player with this
+    addLog(state, `Death Pact drains ${hpCost} HP.`);
+  }
 
   // Apply regeneration relics
   const regenRelic = state.player.relics?.find(r => r.type === 'regeneration');
@@ -473,6 +658,14 @@ export function endPlayerTurn(state) {
     const heal = state.player.equipment.armor.healPerTurn;
     state.player.hp = Math.min(state.player.maxHp, state.player.hp + heal);
     addLog(state, `Your armor regenerates ${heal} HP.`);
+  }
+
+  // Decrement revenge buff duration
+  if (state.revengeTurnsLeft > 0) {
+    state.revengeTurnsLeft--;
+    if (state.revengeTurnsLeft === 0) {
+      addLog(state, 'Your rage subsides.');
+    }
   }
 
   // Switch to enemy turn
@@ -555,17 +748,98 @@ async function executeEnemyAction(state, enemy, action) {
       // Update facing
       updateFacing(enemy, state.player.position);
 
+      // Check for first strike immunity
+      const relics = state.player.relics || [];
+      const firstStrikeRelic = relics.find(r => r.type === 'first_strike_immunity');
+      if (firstStrikeRelic && !state.firstAttackUsed) {
+        state.firstAttackUsed = true;
+        addLog(state, `${enemy.name}'s attack is blocked by Mirror Shield!`);
+        break;
+      }
+
+      // Check for dodge chance
+      const dodgeRelic = relics.find(r => r.type === 'dodge');
+      const dodgeChance = dodgeRelic ? dodgeRelic.dodgeBonus || 0.2 : 0;
+      if (Math.random() < dodgeChance) {
+        addLog(state, `You dodge ${enemy.name}'s attack!`);
+        break;
+      }
+
       // Calculate damage
-      const damage = calculateEnemyAttackDamage(
+      let damage = calculateEnemyAttackDamage(
         enemy,
         state.player,
         state
       );
 
+      // Last Stand - survive at 1 HP
+      const lastStandRelic = relics.find(r => r.type === 'last_stand');
+      if (lastStandRelic && !state.lastStandUsed && state.player.hp - damage <= 0) {
+        state.lastStandUsed = true;
+        state.player.hp = 1;
+        addLog(state, `${enemy.name} attacks! Iron Will prevents your death - you survive with 1 HP!`);
+        break;
+      }
+
       // Apply damage
       state.player.hp -= damage;
 
       addLog(state, `${enemy.name} attacks for ${damage} damage!`);
+
+      // Smoke Bomb - chance to teleport when hit
+      const smokeBombRelic = relics.find(r => r.type === 'evasive_teleport');
+      if (smokeBombRelic && Math.random() < smokeBombRelic.dodgeChance) {
+        const teleportRange = smokeBombRelic.teleportRange || 2;
+        const validTeleports = [];
+
+        // Find valid teleport positions
+        for (let dx = -teleportRange; dx <= teleportRange; dx++) {
+          for (let dy = -teleportRange; dy <= teleportRange; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const newPos = {
+              x: state.player.position.x + dx,
+              y: state.player.position.y + dy,
+            };
+            if (
+              newPos.x >= 0 &&
+              newPos.x < state.gridSize &&
+              newPos.y >= 0 &&
+              newPos.y < state.gridSize &&
+              !state.grid[newPos.y][newPos.x].occupied
+            ) {
+              validTeleports.push(newPos);
+            }
+          }
+        }
+
+        if (validTeleports.length > 0) {
+          const teleportDest = validTeleports[Math.floor(Math.random() * validTeleports.length)];
+          state.grid[state.player.position.y][state.player.position.x].occupied = null;
+          state.grid[teleportDest.y][teleportDest.x].occupied = 'player';
+          state.player.position = teleportDest;
+          addLog(state, 'You vanish in a puff of smoke!');
+        }
+      }
+
+      // Revenge Token - activate after taking damage
+      const revengeRelic = relics.find(r => r.type === 'revenge');
+      if (revengeRelic) {
+        state.revengeTurnsLeft = revengeRelic.duration || 2;
+        addLog(state, 'Rage fills you! Damage increased!');
+      }
+
+      // Counter - chance to immediately counter
+      const counterRelic = relics.find(r => r.type === 'counter');
+      if (counterRelic && Math.random() < counterRelic.counterChance) {
+        const counterDamage = Math.floor((state.player.weapon1?.damage || 2) / 2);
+        enemy.hp -= counterDamage;
+        addLog(state, `You counter for ${counterDamage} damage!`);
+        if (enemy.hp <= 0) {
+          addLog(state, `${enemy.name} is defeated by counter!`);
+          handleEnemyDefeat(state, enemy);
+          break;
+        }
+      }
 
       // Add enemy attack animation
       const enemyAnimType = getEnemyAttackAnimationType(enemy);
@@ -715,6 +989,42 @@ function getEnemyAttackEmoji(enemy) {
 
   // Fallback: use enemy emoji
   return enemy.emoji || '💥';
+}
+
+// Apply relic combat effects (poison_all, etc.)
+function applyRelicCombatEffects(state, player, enemy) {
+  const relics = player.relics || [];
+
+  // Poison all attacks
+  const poisonRelic = relics.find(r => r.type === 'poison_all');
+  if (poisonRelic) {
+    applyStatusEffect(enemy, {
+      type: 'poison',
+      damage: poisonRelic.poisonDamage || 1,
+      duration: poisonRelic.poisonDuration || 2,
+    });
+    addLog(state, `${enemy.name} is poisoned!`);
+  }
+
+  // Cleave - hit adjacent enemies
+  const cleaveRelic = relics.find(r => r.type === 'cleave');
+  if (cleaveRelic) {
+    const adjacent = getAdjacentPositions(player.position);
+    state.enemies.forEach(e => {
+      if (e.id !== enemy.id && e.hp > 0) {
+        const isAdjacent = adjacent.some(pos => pos.x === e.position.x && pos.y === e.position.y);
+        if (isAdjacent) {
+          const cleaveDamage = Math.floor(player.weapon1?.damage / 2) || 1;
+          e.hp -= cleaveDamage;
+          addLog(state, `${e.name} takes ${cleaveDamage} cleave damage!`);
+          if (e.hp <= 0) {
+            addLog(state, `${e.name} is defeated by cleave!`);
+            handleEnemyDefeat(state, e);
+          }
+        }
+      }
+    });
+  }
 }
 
 // Export helper to check if it's player's turn

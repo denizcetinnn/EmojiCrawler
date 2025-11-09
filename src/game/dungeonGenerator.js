@@ -1,8 +1,11 @@
 import { getRandomEnemy, getEncounterEnemies, getEnemyTier } from '../data/enemies';
+import { getFloor2EncounterEnemies } from '../data/floor2Enemies';
 import { getRandomWeapon } from '../data/weapons';
 import { getRandomArmor } from '../data/armor';
 import { getRandomRelic } from '../data/relics';
 import { getRandomBoss } from '../data/bosses';
+import { getRandomFloor2Boss } from '../data/floor2Bosses';
+import { createFloor2EventRoom } from '../data/floor2Events';
 import { POTIONS } from '../data/roomTemplates';
 import { getNextPosition, getOppositeDirection } from '../utils/helpers';
 import {
@@ -15,9 +18,23 @@ import {
   createBossRoom
 } from '../data/roomTemplates';
 
-export const generateFloor = () => {
+export const generateFloor = (floor = 1) => {
   const layout = [];
-  const startRoom = createStartRoom(0, 0, 'south');
+  // Floor 2+ starts in a "Descending Chamber" instead of the old man's room
+  const startRoom = floor === 1
+    ? createStartRoom(0, 0, 'south')
+    : {
+        x: 0,
+        y: 0,
+        type: 'start',
+        name: 'Descending Chamber',
+        description: 'Stone stairs lead down into oppressive darkness. The air is thick with malice.',
+        visited: false,
+        cleared: false,
+        exits: { north: true, east: false, south: false, west: false, south: true },
+        actions: [],
+        floor
+      };
   layout.push(startRoom);
   
   const queue = [{ x: 0, y: 1, from: 'south', depth: 1 }];
@@ -109,7 +126,7 @@ export const generateFloor = () => {
       roomType = 'combat';
     }
 
-    const room = createRoomByType(roomType, current.x, current.y, current.from, current.depth);
+    const room = createRoomByType(roomType, current.x, current.y, current.from, current.depth, floor);
     layout.push(room);
     generatedRooms.push({ room, depth: current.depth });
     roomCount++;
@@ -168,22 +185,23 @@ export const generateFloor = () => {
   }
   
   // Add boss room at furthest point
-  const boss = getRandomBoss();
+  const boss = floor === 1 ? getRandomBoss() : getRandomFloor2Boss();
   const bossRoom = createBossRoom(furthestRoom.x, furthestRoom.y + 1, 'south', boss);
-  
+  bossRoom.floor = floor;
+
   // Connect boss room to furthest room
   const furthestRoomObj = layout.find(r => r.x === furthestRoom.x && r.y === furthestRoom.y);
   if (furthestRoomObj) {
     furthestRoomObj.exits.north = true;
     bossRoom.exits.south = true;
   }
-  
+
   layout.push(bossRoom);
-  
+
   return layout;
 };
 
-const createRoomByType = (type, x, y, from, roomDepth = 0) => {
+const createRoomByType = (type, x, y, from, roomDepth = 0, floor = 1) => {
   switch (type) {
     case 'combat':
       // Varied encounter types based on depth and chance
@@ -205,17 +223,21 @@ const createRoomByType = (type, x, y, from, roomDepth = 0) => {
       }
       // Early rooms (depth < 3) are always 'normal'
 
-      const enemies = getEncounterEnemies(encounterType, 1); // floor is always 1 for now
+      // Use Floor 2 enemies if on floor 2
+      const enemies = floor === 1
+        ? getEncounterEnemies(encounterType, floor)
+        : getFloor2EncounterEnemies(encounterType);
       return createCombatRoom(x, y, from, enemies.length === 1 ? enemies[0] : enemies);
 
     case 'treasure':
       return createTreasureRoom(x, y, from, true); // Locked by default
     case 'shop':
-      return createShopRoom(x, y, from, generateShopInventory());
+      return createShopRoom(x, y, from, generateShopInventory(floor));
     case 'rest':
       return createRestRoom(x, y, from);
     case 'event':
-      return createEventRoom(x, y, from);
+      // Use Floor 2 events if on floor 2
+      return floor === 1 ? createEventRoom(x, y, from) : createFloor2EventRoom(x, y, from);
     default:
       return createCombatRoom(x, y, from, getRandomEnemy());
   }
@@ -224,8 +246,8 @@ const createRoomByType = (type, x, y, from, roomDepth = 0) => {
 const generateShopInventory = (floor = 1) => {
   const items = [];
 
-  // Floor-appropriate rarity (floor 1 = max rarity 3, later floors can be higher)
-  const maxRarity = floor === 1 ? 3 : (Math.random() < 0.2 ? 5 : 4);
+  // Floor-appropriate rarity (floor 1 = max rarity 3, floor 2+ = max rarity 4-5)
+  const maxRarity = floor === 1 ? 3 : (Math.random() < 0.3 ? 5 : 4);
 
   // Weapons
   for (let i = 0; i < 3; i++) {

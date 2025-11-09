@@ -17,6 +17,8 @@ export const useGameActions = (state) => {
     setCurrentRoomPos,
     floorLayout,
     setFloorLayout,
+    currentFloor,
+    setCurrentFloor,
     player,
     setPlayer,
     combatState,
@@ -38,8 +40,9 @@ export const useGameActions = (state) => {
   };
 
   const startGame = () => {
-    const layout = generateFloor();
+    const layout = generateFloor(1); // Always start at floor 1
     setFloorLayout(layout);
+    setCurrentFloor(1);
     setCurrentRoomPos({ x: 0, y: 0 });
 
     const startRoom = layout[0];
@@ -83,9 +86,19 @@ export const useGameActions = (state) => {
 
     if (actionIndex === -1) return;
 
+    // Check if this is a Floor 2 event action (mutually exclusive choices)
+    const floor2EventPrefixes = ['altar_', 'contract_', 'library_', 'torture_', 'summon_', 'fountain_', 'lab_', 'portal_'];
+    const isFloor2Event = floor2EventPrefixes.some(prefix => action.id.startsWith(prefix));
+
     // Don't mark shop or locked_door as completed so we can retry
     if (action.id !== 'shop' && action.id !== 'locked_door') {
       room.actions[actionIndex].completed = true;
+
+      // For Floor 2 events, mark ALL actions as completed (mutually exclusive)
+      if (isFloor2Event) {
+        room.actions.forEach(a => a.completed = true);
+        room.cleared = true;
+      }
     }
 
     handleRoomAction(action.id, room, player, setPlayer, setDialogue, startCombat, setItemChoice, setGoldChoice, setShowShop, updateChoices);
@@ -257,6 +270,13 @@ export const useGameActions = (state) => {
         bossWeapon = enemy.legendaryWeapon;
       }
     });
+
+    // Apply XP bonus relic (Scholar's Journal)
+    const hasXPBonus = player.relics.some(r => r.type === 'xp');
+    if (hasXPBonus) {
+      const xpRelic = player.relics.find(r => r.type === 'xp');
+      totalXP = Math.floor(totalXP * (xpRelic.xpMultiplier || 1.5));
+    }
 
     // Update player with combat rewards
     const newXp = player.xp + totalXP;
@@ -477,10 +497,27 @@ export const useGameActions = (state) => {
   };
 
   const descendFloor = () => {
-    // For now, just show victory message
-    // Later we'll implement floor 2
-    setDialogue('Congratulations! You have completed Floor 1. More floors coming soon!');
-    setGameState('gameOver');
+    const nextFloor = currentFloor + 1;
+
+    if (nextFloor > 2) {
+      // No more floors yet
+      setDialogue('Congratulations! You have completed all available floors!');
+      setGameState('gameOver');
+      return;
+    }
+
+    // Generate new floor
+    const layout = generateFloor(nextFloor);
+    setFloorLayout(layout);
+    setCurrentFloor(nextFloor);
+    setCurrentRoomPos({ x: 0, y: 0 });
+
+    const startRoom = layout[0];
+    startRoom.visited = true;
+
+    // Floor 2 welcome message
+    setDialogue(`You descend deeper into the abyss. The air grows cold, and shadows twist unnaturally. Floor ${nextFloor} awaits...`);
+    setChoices(startRoom.actions.filter(a => !a.completed));
   };
 
   const restartGame = () => {
@@ -502,6 +539,7 @@ export const useGameActions = (state) => {
     setGameState('intro');
     setCurrentRoomPos(null);
     setFloorLayout([]);
+    setCurrentFloor(1); // Reset to floor 1
     setCombatState(null);
     setShowMap(false);
     setShowSkillTree(false);
