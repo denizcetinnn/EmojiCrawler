@@ -1,7 +1,14 @@
 import { calculateLevel } from '../utils/calculations';
 import { getNextPosition } from '../utils/helpers';
 import { generateFloor } from '../game/dungeonGenerator';
-import { processCombatMove, processEnemyTurn } from '../game/combatSystem';
+import {
+  initializeCombat,
+  processPlayerMove,
+  processPlayerAttack,
+  endPlayerTurn,
+  processEnemyTurns,
+  isCombatOver,
+} from '../game/combatSystem';
 import { handleRoomAction, applyRelicEffect } from '../game/actionHandlers';
 
 export const useGameActions = (state) => {
@@ -12,18 +19,8 @@ export const useGameActions = (state) => {
     setFloorLayout,
     player,
     setPlayer,
-    enemy,
-    setEnemy,
-    combatLog,
-    setCombatLog,
-    playerDefending,
-    setPlayerDefending,
-    playerDodging,
-    setPlayerDodging,
-    enemyDefending,
-    setEnemyDefending,
-    enemyDodging,
-    setEnemyDodging,
+    combatState,
+    setCombatState,
     setDialogue,
     choices,
     setChoices,
@@ -36,9 +33,6 @@ export const useGameActions = (state) => {
     setShowShop
   } = state;
 
-  // Add this to the state destructuring at the top
-  //const [combatLocked, setCombatLocked] = state.combatLocked ? [state.combatLocked, state.setCombatLocked] : [false, () => {}];
-
   const getCurrentRoom = () => {
     return floorLayout.find(r => r.x === state.currentRoomPos.x && r.y === state.currentRoomPos.y);
   };
@@ -47,10 +41,10 @@ export const useGameActions = (state) => {
     const layout = generateFloor();
     setFloorLayout(layout);
     setCurrentRoomPos({ x: 0, y: 0 });
-    
+
     const startRoom = layout[0];
     startRoom.visited = true;
-    
+
     setGameState('playing');
     setDialogue("You'll need to get stronger if you want to survive here. Check my dressing room - take whatever you need.");
     setChoices(startRoom.actions.filter(a => !a.completed));
@@ -59,17 +53,17 @@ export const useGameActions = (state) => {
   const moveToRoom = (direction) => {
     const next = getNextPosition(state.currentRoomPos.x, state.currentRoomPos.y, direction);
     const nextRoom = floorLayout.find(r => r.x === next.x && r.y === next.y);
-    
+
     if (nextRoom) {
       nextRoom.visited = true;
       setCurrentRoomPos({ x: next.x, y: next.y });
       setDialogue(`You enter ${nextRoom.name}. ${nextRoom.description}`);
       setChoices(nextRoom.actions.filter(a => !a.completed));
-      
+
       if (itemChoice) {
         setItemChoice(null);
       }
-      
+
       // Close shop when leaving
       if (state.showShop) {
         setShowShop(false);
@@ -86,17 +80,17 @@ export const useGameActions = (state) => {
   const handleAction = (action) => {
     const room = getCurrentRoom();
     const actionIndex = room.actions.findIndex(a => a.id === action.id);
-    
+
     if (actionIndex === -1) return;
-    
+
     // Don't mark shop or locked_door as completed so we can retry
     if (action.id !== 'shop' && action.id !== 'locked_door') {
       room.actions[actionIndex].completed = true;
     }
-  
+
     handleRoomAction(action.id, room, player, setPlayer, setDialogue, startCombat, setItemChoice, setGoldChoice, setShowShop, updateChoices);
     updateChoices(room);
-    
+
     // Check for level up after XP-granting actions
     setTimeout(() => {
       const newLevel = calculateLevel(player.xp);
@@ -116,193 +110,205 @@ export const useGameActions = (state) => {
       setPlayer(p => {
         const newInventory = [...p.inventory, item];
         const newEquipment = { ...p.equipment };
-        
-        // Auto-equip legendary weapons
+
+        // Auto-equip weapons and armor
         if (item.type === 'weapon') {
-          newEquipment.weapon = item;
-          
-          // Add granted move if it's a legendary weapon
-          if (item.grantedMove && item.rarity === 'legendary') {
-            p.grantedMoves = p.grantedMoves || {};
-            p.grantedMoves[item.name] = item.grantedMove;
+          // Equip to first empty slot, or replace weapon1
+          if (!p.equipment.weapon1) {
+            newEquipment.weapon1 = item;
+          } else if (!p.equipment.weapon2) {
+            newEquipment.weapon2 = item;
+          } else {
+            // Both slots full, replace weapon1
+            newEquipment.weapon1 = item;
           }
-        } else if (item.type === 'armor' && !p.equipment.armor) {
+        } else if (item.type === 'armor') {
           newEquipment.armor = item;
         }
-        
+
         return { ...p, inventory: newInventory, equipment: newEquipment };
       });
-      
-      if (item.grantedMove && item.rarity === 'legendary') {
-        setDialogue(`You take the ${item.name} and feel its power! Gained move: ${item.grantedMove.name}!`);
-      } else {
-        setDialogue(`You take the ${item.name}!`);
-      }
+
+      setDialogue(`You take the ${item.name} and equip it!`);
     } else {
       setPlayer(p => ({ ...p, relics: [...p.relics, item] }));
       applyRelicEffect(item, player, setPlayer);
       setDialogue(`You take the ${item.name}!`);
     }
-    
+
     setItemChoice(null);
   };
 
   const startCombat = (enemyData, isBoss = false) => {
-    setEnemy({ ...enemyData, energy: 10, maxEnergy: 10, isBoss });
+    // Convert enemy data to array if single enemy
+    const enemies = Array.isArray(enemyData) ? enemyData : [enemyData];
+
+    // Initialize grid-based combat
+    const newCombatState = initializeCombat(player, enemies, isBoss);
+
+    setCombatState(newCombatState);
     setGameState('combat');
-    setCombatLog([`${isBoss ? '💀 BOSS FIGHT! 💀 ' : ''}A ${enemyData.name} appears!`]);
   };
 
-  const handlePlayerMove = (moveName) => {
+  // Grid Combat Actions
+  const handleCombatMove = (direction) => {
+    if (!combatState || combatState.turn !== 'player') return;
 
-    if (state.combatLocked) return;
-  
-    state.setCombatLocked(true);
+    const result = processPlayerMove(combatState, direction);
 
-    const result = processCombatMove(moveName, player, enemy, playerDefending, playerDodging, enemyDefending, enemyDodging);
-    
-    const newLog = [...combatLog, ...result.log];
-    setCombatLog(newLog);
-    
-    if (result.playerUpdate) {
-      setPlayer(p => ({ ...p, ...result.playerUpdate }));
-    }
-    
-    if (result.enemyUpdate) {
-      const newEnemy = { ...enemy, ...result.enemyUpdate };
-      setEnemy(newEnemy);
-      
-      if (newEnemy.hp <= 0) {
-        handleCombatVictory(newLog);
-        return;
+    if (result.success) {
+      setCombatState({ ...result.state });
+
+      // Auto-end turn if AP is depleted
+      if (result.state.player.currentAP <= 0) {
+        setTimeout(() => handleEndTurn(), 500);
       }
     }
-    
-    setPlayerDefending(result.newPlayerDefending);
-    setPlayerDodging(result.newPlayerDodging);
-    setEnemyDefending(result.newEnemyDefending);
-    setEnemyDodging(result.newEnemyDodging);
-    
-    if (result.shouldTriggerEnemyTurn) {
-      setTimeout(() => {
-        handleEnemyTurn();
-        // Unlock after enemy turn completes
+  };
+
+  const handleCombatAttack = (targetEnemy, selectedWeapon = null) => {
+    if (!combatState || combatState.turn !== 'player') return;
+
+    const result = processPlayerAttack(combatState, targetEnemy, selectedWeapon);
+
+    if (result.success) {
+      // Update combat state
+      const updatedState = { ...result.state };
+      setCombatState(updatedState);
+
+      // Check if combat is over (all enemies defeated)
+      if (isCombatOver(updatedState)) {
         setTimeout(() => {
-          state.setCombatLocked(false);
-        }, 1100);
+          handleCombatVictory(updatedState);
+        }, 1000);
+      } else if (updatedState.player.currentAP <= 0) {
+        // Auto-end turn if AP is depleted
+        setTimeout(() => handleEndTurn(), 500);
+      }
+    }
+  };
+
+  const handleEndTurn = async () => {
+    if (!combatState || combatState.turn !== 'player') return;
+
+    // End player turn
+    const stateAfterPlayerTurn = endPlayerTurn(combatState);
+    setCombatState({ ...stateAfterPlayerTurn });
+
+    // Small delay before enemy turns
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Process enemy turns with UI updates
+    const stateAfterEnemyTurns = await processEnemyTurns(
+      stateAfterPlayerTurn,
+      (updatedState) => {
+        // Update UI during enemy turns
+        setCombatState({ ...updatedState });
+      }
+    );
+
+    // Final state update
+    setCombatState({ ...stateAfterEnemyTurns });
+
+    // Check if player died
+    if (stateAfterEnemyTurns.player.hp <= 0) {
+      setTimeout(() => {
+        setGameState('gameOver');
+        state.setPlaythroughCount(c => c + 1);
       }, 1000);
-    } else {
-      state.setCombatLocked(false);
+      return; // Don't check for victory if player is dead
+    }
+
+    // Check if combat is over
+    if (isCombatOver(stateAfterEnemyTurns)) {
+      setTimeout(() => {
+        handleCombatVictory(stateAfterEnemyTurns);
+      }, 1000);
     }
   };
 
-  const handleEnemyTurn = () => {
-    const result = processEnemyTurn(enemy, player, playerDodging, playerDefending);
-    
-    setCombatLog(log => [...log, ...result.log]);
-    
-    if (result.playerUpdate) {
-      setPlayer(p => {
-        const updated = { ...p, ...result.playerUpdate };
-        
-        if (updated.hp <= 0) {
-          setTimeout(() => {
-            setGameState('gameOver');
-            state.setPlaythroughCount(c => c + 1);
-          }, 1000);
-        }
-        
-        return updated;
-      });
-    }
-    
-    setPlayerDefending(result.newPlayerDefending);
-    setPlayerDodging(result.newPlayerDodging);
-    setEnemyDefending(result.newEnemyDefending);
-    setEnemyDodging(result.newEnemyDodging);
-  };
+  const handleCombatVictory = (finalCombatState) => {
+    // Calculate rewards from all defeated enemies
+    let totalXP = 0;
+    let totalGold = 0;
+    let keyDrops = 0;
+    let isBoss = false;
+    let bossWeapon = null;
 
-  const handleCombatVictory = (newLog) => {
-    const hasLifesteal = player.relics.some(r => r.type === 'lifesteal');
-    const hasGoldBonus = player.relics.some(r => r.type === 'gold');
-    const isBoss = enemy.isBoss;
-    
-    const goldReward = hasGoldBonus ? Math.floor(enemy.goldReward * 1.5) : enemy.goldReward;
-    
-    // 20% chance to drop a key from regular enemies
-    const keyDrop = !isBoss && Math.random() < 0.2;
-    
-    newLog.push(`${enemy.name} defeated!`);
-    newLog.push(`Gained ${enemy.xpReward} XP!`);
-    
-    if (keyDrop) {
-      newLog.push('The enemy dropped a key! 🔑');
-    }
-    
-    if (hasLifesteal) {
-      newLog.push('Vampire Fang: Restored 1 HP!');
-    }
-    
-    const newXp = player.xp + enemy.xpReward;
+    // Get enemy data from combat log or initial state
+    // For now, we'll use a simpler approach - track this during combat init
+    const enemiesDefeated = finalCombatState.enemiesDefeated || [];
+
+    enemiesDefeated.forEach(enemy => {
+      totalXP += enemy.xpReward || 0;
+
+      // Apply gold bonus relic
+      const hasGoldBonus = player.relics.some(r => r.type === 'gold');
+      const goldMultiplier = hasGoldBonus ? 1.5 : 1;
+      totalGold += Math.floor((enemy.goldReward || 0) * goldMultiplier);
+
+      // Check for key drop (20% chance from non-boss enemies)
+      if (!enemy.isBoss && Math.random() < 0.2) {
+        keyDrops++;
+      }
+
+      if (enemy.isBoss) {
+        isBoss = true;
+        bossWeapon = enemy.legendaryWeapon;
+      }
+    });
+
+    // Update player with combat rewards
+    const newXp = player.xp + totalXP;
     const newLevel = calculateLevel(newXp);
     const leveledUp = newLevel > player.level;
-    
+
     setPlayer(p => ({
       ...p,
+      hp: finalCombatState.player.hp, // Use HP from combat
       xp: newXp,
       level: newLevel,
       skillPoints: p.skillPoints + (leveledUp ? 2 : 0),
-      gold: p.gold + goldReward,
-      keys: p.keys + (keyDrop ? 1 : 0),
-      hp: hasLifesteal ? Math.min(p.hp + 1, p.maxHp) : p.hp,
-      defeatedBoss: isBoss ? true : p.defeatedBoss  // Track boss defeat
+      gold: p.gold + totalGold,
+      keys: p.keys + keyDrops,
+      defeatedBoss: isBoss ? true : p.defeatedBoss
     }));
-    
-    if (leveledUp) {
-      newLog.push(`Level up! Now level ${newLevel}. Gained 2 skill points!`);
-    }
-    
-    setCombatLog(newLog);
-    
+
+    // Mark room as cleared
     const room = getCurrentRoom();
     const combatAction = room.actions.find(a => a.id === 'spider' || a.id === 'enemy' || a.id === 'boss');
     if (combatAction) combatAction.completed = true;
     room.cleared = true;
-    
+
     setTimeout(() => {
-      if (isBoss) {
-        // Boss defeated - show legendary weapon first, THEN victory
-        const legendaryWeapon = { ...enemy.legendaryWeapon };
+      if (isBoss && bossWeapon) {
+        // Boss defeated - show legendary weapon first
         setItemChoice({
-          item: legendaryWeapon,
-          message: `The ${enemy.name} drops a legendary weapon!`
+          item: bossWeapon,
+          message: `Boss defeated! A legendary weapon is dropped!`
         });
-        setGameState('playing');  // Stay in playing so user can take the weapon
-        setEnemy(null);
-        setPlayerDefending(false);
-        setPlayerDodging(false);
-        setEnemyDefending(false);
-        setEnemyDodging(false);
+        setGameState('playing');
+        setCombatState(null);
         setDialogue('BOSS DEFEATED! Take the legendary weapon, then you can descend to the next floor.');
         updateChoices(room);
       } else {
+        // Normal victory
         setGameState('playing');
-        setEnemy(null);
-        setPlayerDefending(false);
-        setPlayerDodging(false);
-        setEnemyDefending(false);
-        setEnemyDodging(false);
-        setDialogue('Victory!');
+        setCombatState(null);
+        setDialogue(leveledUp ? `Victory! Level up to ${newLevel}!` : 'Victory!');
         updateChoices(room);
-        
-        setGoldChoice(goldReward);
+
+        if (totalGold > 0) {
+          setGoldChoice(totalGold);
+        }
       }
     }, 2000);
   };
 
   const handleCollectGold = () => {
-    setPlayer(p => ({ ...p, gold: p.gold + state.goldChoice }));
-    setDialogue(`Collected ${state.goldChoice} gold!`);
+    const amount = state.goldChoice;
+    setPlayer(p => ({ ...p, gold: p.gold + amount }));
+    setDialogue(`Collected ${amount} gold!`);
     setGoldChoice(null);
   };
 
@@ -316,32 +322,46 @@ export const useGameActions = (state) => {
     }
   };
 
-  const equipItem = (item) => {
+  const equipItem = (item, slot = null) => {
     setPlayer(p => {
       const updates = { equipment: { ...p.equipment } };
-      
+
       if (item.type === 'weapon') {
-        // Remove old weapon's granted move if it had one
-        const oldWeapon = p.equipment.weapon;
-        if (oldWeapon?.grantedMove && oldWeapon.rarity === 'legendary') {
-          const newGrantedMoves = { ...p.grantedMoves };
-          delete newGrantedMoves[oldWeapon.name];
-          updates.grantedMoves = newGrantedMoves;
+        // Check if already equipped in the other slot
+        const alreadyInSlot1 = p.equipment.weapon1?.name === item.name;
+        const alreadyInSlot2 = p.equipment.weapon2?.name === item.name;
+
+        if (slot === 'weapon1') {
+          if (alreadyInSlot2) {
+            // Can't equip same weapon twice
+            setDialogue(`${item.name} is already equipped!`);
+            return p;
+          }
+          updates.equipment.weapon1 = item;
+        } else if (slot === 'weapon2') {
+          if (alreadyInSlot1) {
+            // Can't equip same weapon twice
+            setDialogue(`${item.name} is already equipped!`);
+            return p;
+          }
+          updates.equipment.weapon2 = item;
+        } else {
+          // Auto-assign to weapon1 if empty, otherwise weapon2
+          if (!p.equipment.weapon1) {
+            updates.equipment.weapon1 = item;
+          } else if (!p.equipment.weapon2) {
+            updates.equipment.weapon2 = item;
+          } else {
+            // Both slots full, replace weapon1
+            updates.equipment.weapon1 = item;
+          }
         }
-        
-        updates.equipment.weapon = item;
-        
-        // Add new weapon's granted move if it has one
-        if (item.grantedMove && item.rarity === 'legendary') {
-          updates.grantedMoves = { ...p.grantedMoves, [item.name]: item.grantedMove };
-        }
-        
-        setDialogue(`Equipped ${item.name}!${item.grantedMove ? ` Gained move: ${item.grantedMove.name}!` : ''}`);
+        setDialogue(`Equipped ${item.name}!`);
       } else if (item.type === 'armor') {
         updates.equipment.armor = item;
         setDialogue(`Equipped ${item.name}!`);
       }
-      
+
       return { ...p, ...updates };
     });
   };
@@ -350,14 +370,19 @@ export const useGameActions = (state) => {
     setPlayer(p => {
       const newInventory = [...p.inventory];
       const trashedItem = newInventory[itemIndex];
-      
+
       const newEquipment = { ...p.equipment };
-      if (trashedItem.type === 'weapon' && p.equipment.weapon?.name === trashedItem.name) {
-        newEquipment.weapon = null;
+      if (trashedItem.type === 'weapon') {
+        if (p.equipment.weapon1?.name === trashedItem.name) {
+          newEquipment.weapon1 = null;
+        }
+        if (p.equipment.weapon2?.name === trashedItem.name) {
+          newEquipment.weapon2 = null;
+        }
       } else if (trashedItem.type === 'armor' && p.equipment.armor?.name === trashedItem.name) {
         newEquipment.armor = null;
       }
-      
+
       newInventory.splice(itemIndex, 1);
       return { ...p, inventory: newInventory, equipment: newEquipment };
     });
@@ -368,15 +393,18 @@ export const useGameActions = (state) => {
     if (player.gold >= price) {
       setPlayer(p => {
         const newPlayer = { ...p, gold: p.gold - price };
-        
+
         if (item.type === 'potion') {
           if (item.healAmount) {
             newPlayer.hp = Math.min(p.hp + item.healAmount, p.maxHp);
             setDialogue(`Purchased and used ${item.name}! Restored ${item.healAmount} HP.`);
           } else if (item.energyAmount) {
-            newPlayer.energy = Math.min(p.energy + item.energyAmount, p.maxEnergy);
-            setDialogue(`Purchased and used ${item.name}! Restored ${item.energyAmount} Energy.`);
+            // Energy potions not used in new system, but keep for compatibility
+            setDialogue(`Purchased ${item.name}!`);
           }
+        } else if (item.type === 'key') {
+          newPlayer.keys = p.keys + 1;
+          setDialogue(`Purchased ${item.name} for ${price}g!`);
         } else if (item.effect && !item.damage && !item.defense) {
           newPlayer.relics = [...p.relics, item];
           setDialogue(`Purchased ${item.name}!`);
@@ -387,30 +415,30 @@ export const useGameActions = (state) => {
           newPlayer.inventory = [...p.inventory, item];
           setDialogue(`Purchased ${item.name} for ${price}g!`);
         }
-        
+
         return newPlayer;
       });
       return true;
     }
     return false;
   };
-  
+
   const handleShopNegotiate = (item, bid) => {
     const itemValue = item.value || 10;
     const minPrice = Math.floor(itemValue * Math.max(0.5, 1 - (player.stats.cha * 0.05)));
-    
+
     if (bid >= minPrice && player.gold >= bid) {
       setPlayer(p => {
         const newPlayer = { ...p, gold: p.gold - bid };
-        
+
         if (item.type === 'potion') {
           if (item.healAmount) {
             newPlayer.hp = Math.min(p.hp + item.healAmount, p.maxHp);
             setDialogue(`Negotiated and used ${item.name} for ${bid}g! Restored ${item.healAmount} HP.`);
-          } else if (item.energyAmount) {
-            newPlayer.energy = Math.min(p.energy + item.energyAmount, p.maxEnergy);
-            setDialogue(`Negotiated and used ${item.name} for ${bid}g! Restored ${item.energyAmount} Energy.`);
           }
+        } else if (item.type === 'key') {
+          newPlayer.keys = p.keys + 1;
+          setDialogue(`Successfully negotiated ${item.name} for ${bid}g!`);
         } else if (item.effect && !item.damage && !item.defense) {
           newPlayer.relics = [...p.relics, item];
           setDialogue(`Successfully negotiated ${item.name} for ${bid}g!`);
@@ -421,7 +449,7 @@ export const useGameActions = (state) => {
           newPlayer.inventory = [...p.inventory, item];
           setDialogue(`Successfully negotiated ${item.name} for ${bid}g!`);
         }
-        
+
         return newPlayer;
       });
       return true;
@@ -445,37 +473,28 @@ export const useGameActions = (state) => {
     setPlayer({
       hp: 10,
       maxHp: 10,
-      energy: 10,
-      maxEnergy: 10,
       xp: 0,
       level: 1,
       skillPoints: 0,
       stats: { str: 0, dex: 0, int: 0, cha: 0 },
-      moves: ['Punch', 'Take a Breather', 'Dodge', 'Block'],
       inventory: [],
       equipment: { weapon: null, armor: null, accessory: null },
       gold: 0,
       keys: 0,
       relics: [],
       hasMap: false,
-      grantedMoves:{},
       defeatedBoss: false
     });
     setGameState('intro');
     setCurrentRoomPos(null);
     setFloorLayout([]);
-    setEnemy(null);
-    setCombatLog([]);
+    setCombatState(null);
     setShowMap(false);
     setShowSkillTree(false);
     setShowInventory(false);
     setItemChoice(null);
     setGoldChoice(null);
     setShowShop(false);
-    setPlayerDefending(false);
-    setPlayerDodging(false);
-    setEnemyDefending(false);
-    setEnemyDodging(false);
   };
 
   return {
@@ -485,7 +504,9 @@ export const useGameActions = (state) => {
     handleAction,
     handleTakeItem,
     startCombat,
-    handlePlayerMove,
+    handleCombatMove,
+    handleCombatAttack,
+    handleEndTurn,
     handleCollectGold,
     spendSkillPoint,
     equipItem,

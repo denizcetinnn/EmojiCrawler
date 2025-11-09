@@ -17,7 +17,7 @@ export const useGameState = () => {
     stats: { str: 0, dex: 0, int: 0, cha: 0 },
     moves: ['Punch', 'Take a Breather', 'Dodge', 'Block'],
     inventory: [],
-    equipment: { weapon: null, armor: null, accessory: null },
+    equipment: { weapon1: null, weapon2: null, armor: null, accessory: null },
     gold: 0,
     keys: 0,
     relics: [],
@@ -26,13 +26,8 @@ export const useGameState = () => {
     defeatedBoss: false
   });
 
-  const [enemy, setEnemy] = useState(null);
-  const [combatLog, setCombatLog] = useState([]);
-  const [playerDefending, setPlayerDefending] = useState(false);
-  const [playerDodging, setPlayerDodging] = useState(false);
-  const [enemyDefending, setEnemyDefending] = useState(false);
-  const [enemyDodging, setEnemyDodging] = useState(false);
-  const [combatLocked, setCombatLocked] = useState(false);
+  // New grid-based combat state
+  const [combatState, setCombatState] = useState(null);
 
   const [dialogue, setDialogue] = useState('');
   const [choices, setChoices] = useState([]);
@@ -75,20 +70,8 @@ export const useGameState = () => {
     setPlayer,
     
     // Combat state
-    enemy,
-    setEnemy,
-    combatLog,
-    setCombatLog,
-    playerDefending,
-    setPlayerDefending,
-    playerDodging,
-    setPlayerDodging,
-    enemyDefending,
-    setEnemyDefending,
-    enemyDodging,
-    setEnemyDodging,
-    combatLocked,
-    setCombatLocked,
+    combatState,
+    setCombatState,
     
     // UI state
     dialogue,

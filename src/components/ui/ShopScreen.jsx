@@ -82,10 +82,16 @@ const ShopScreen = ({ shopInventory, player, onBuy, onNegotiate, onClose, room }
             {selectedItem.name}
           </div>
           <div className="text-sm text-gray-400 mt-2">
-            {selectedItem.type === 'weapon' && `Damage: +${selectedItem.damage}`}
+            {selectedItem.type === 'weapon' && (
+              <div>
+                <div>Damage: +{selectedItem.damage} | Range: {selectedItem.range} | AP Cost: {selectedItem.apCost}</div>
+                {selectedItem.description && <div className="text-xs mt-1">{selectedItem.description}</div>}
+              </div>
+            )}
             {selectedItem.type === 'armor' && `Defense: +${selectedItem.defense}`}
             {selectedItem.type === 'potion' && selectedItem.effect}
-            {selectedItem.effect && selectedItem.type !== 'potion' && selectedItem.type !== 'weapon' && selectedItem.type !== 'armor' && selectedItem.effect}
+            {selectedItem.type === 'key' && selectedItem.effect}
+            {selectedItem.effect && selectedItem.type !== 'potion' && selectedItem.type !== 'weapon' && selectedItem.type !== 'armor' && selectedItem.type !== 'key' && selectedItem.effect}
           </div>
           <div className="text-lg text-yellow-400 mt-3">
             Asking Price: {itemValue}g
@@ -201,7 +207,8 @@ const ShopScreen = ({ shopInventory, player, onBuy, onNegotiate, onClose, room }
                     {item.type === 'weapon' && `+${item.damage} damage`}
                     {item.type === 'armor' && `+${item.defense} defense`}
                     {item.type === 'potion' && item.effect}
-                    {item.effect && item.type !== 'potion' && item.type !== 'weapon' && item.type !== 'armor' && item.effect}
+                    {item.type === 'key' && item.effect}
+                    {item.effect && item.type !== 'potion' && item.type !== 'weapon' && item.type !== 'armor' && item.type !== 'key' && item.effect}
                   </div>
                 </div>
                 <div className="text-yellow-400 font-semibold">

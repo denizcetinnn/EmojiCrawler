@@ -16,7 +16,12 @@ const ItemChoice = ({ itemChoice, onTakeItem, onLeave }) => {
           {item.name}
         </div>
         <div className="text-sm text-gray-400 mt-2">
-          {item.type === 'weapon' && `Damage: +${item.damage}`}
+          {item.type === 'weapon' && (
+            <div>
+              <div>Damage: +{item.damage} | Range: {item.range} | AP Cost: {item.apCost}</div>
+              {item.description && <div className="text-xs mt-1">{item.description}</div>}
+            </div>
+          )}
           {item.type === 'armor' && `Defense: +${item.defense}`}
           {item.effect && item.effect}
         </div>

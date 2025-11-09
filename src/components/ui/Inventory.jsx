@@ -15,14 +15,20 @@ const Inventory = ({ player, onEquipItem, onTrashItem, onClose }) => {
         <div className="space-y-1 text-sm">
           <div className="flex items-center gap-2">
             <Swords className="w-4 h-4" />
-            Weapon: {player.equipment.weapon 
-              ? `${player.equipment.weapon.name} (+${player.equipment.weapon.damage} dmg)` 
+            Weapon 1: {player.equipment.weapon1
+              ? `${player.equipment.weapon1.name} (+${player.equipment.weapon1.damage} dmg, Range ${player.equipment.weapon1.range})`
+              : 'None'}
+          </div>
+          <div className="flex items-center gap-2">
+            <Swords className="w-4 h-4 text-blue-400" />
+            Weapon 2: {player.equipment.weapon2
+              ? `${player.equipment.weapon2.name} (+${player.equipment.weapon2.damage} dmg, Range ${player.equipment.weapon2.range})`
               : 'None'}
           </div>
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
-            Armor: {player.equipment.armor 
-              ? `${player.equipment.armor.name} (+${player.equipment.armor.defense} def)` 
+            Armor: {player.equipment.armor
+              ? `${player.equipment.armor.name} (+${player.equipment.armor.defense} def)`
               : 'None'}
           </div>
         </div>
@@ -33,23 +39,45 @@ const Inventory = ({ player, onEquipItem, onTrashItem, onClose }) => {
           <h4 className="text-sm font-semibold text-gray-400 mb-2">Items:</h4>
           <div className="space-y-1">
             {player.inventory.map((item, idx) => {
-              const isEquipped = (item.type === 'weapon' && player.equipment.weapon?.name === item.name) ||
-                                 (item.type === 'armor' && player.equipment.armor?.name === item.name);
-              
+              const isEquippedWeapon1 = (item.type === 'weapon' && player.equipment.weapon1?.name === item.name);
+              const isEquippedWeapon2 = (item.type === 'weapon' && player.equipment.weapon2?.name === item.name);
+              const isEquippedArmor = (item.type === 'armor' && player.equipment.armor?.name === item.name);
+              const isEquipped = isEquippedWeapon1 || isEquippedWeapon2 || isEquippedArmor;
+
               return (
                 <div key={idx} className="bg-gray-800 p-2 rounded flex justify-between items-center">
                   <div className="text-sm flex-1">
                     <div className={`font-semibold ${getRarityColor(item.rarity)}`}>
-                      {item.name} {isEquipped && '(Equipped)'}
+                      {item.name} {isEquippedWeapon1 && '(Slot 1)'} {isEquippedWeapon2 && '(Slot 2)'} {isEquippedArmor && '(Equipped)'}
                     </div>
                     <div className="text-xs text-gray-400">
-                      {item.type === 'weapon' 
-                        ? `+${item.damage} damage` 
+                      {item.type === 'weapon'
+                        ? `+${item.damage} damage | Range ${item.range} | ${item.apCost} AP`
                         : `+${item.defense} defense`}
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    {!isEquipped && (
+                    {item.type === 'weapon' && (
+                      <>
+                        {!isEquippedWeapon1 && (
+                          <button
+                            onClick={() => onEquipItem(item, 'weapon1')}
+                            className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"
+                          >
+                            Slot 1
+                          </button>
+                        )}
+                        {!isEquippedWeapon2 && (
+                          <button
+                            onClick={() => onEquipItem(item, 'weapon2')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs"
+                          >
+                            Slot 2
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {item.type === 'armor' && !isEquipped && (
                       <button
                         onClick={() => handleEquip(item)}
                         className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs"

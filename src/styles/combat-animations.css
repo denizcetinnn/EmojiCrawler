@@ -1,0 +1,339 @@
+/* Combat Animations */
+
+/* Attack Flash */
+@keyframes attackFlash {
+  0% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+  50% {
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    background-color: rgba(255, 255, 255, 0);
+  }
+}
+
+.attack-flash {
+  animation: attackFlash 0.3s ease-out;
+}
+
+/* Damage Flash (Red) */
+@keyframes damageFlash {
+  0% {
+    background-color: rgba(255, 0, 0, 0);
+  }
+  50% {
+    background-color: rgba(255, 0, 0, 0.6);
+  }
+  100% {
+    background-color: rgba(255, 0, 0, 0);
+  }
+}
+
+.damage-flash {
+  animation: damageFlash 0.4s ease-out;
+}
+
+/* Heal Flash (Green) */
+@keyframes healFlash {
+  0% {
+    background-color: rgba(0, 255, 0, 0);
+  }
+  50% {
+    background-color: rgba(0, 255, 0, 0.5);
+  }
+  100% {
+    background-color: rgba(0, 255, 0, 0);
+  }
+}
+
+.heal-flash {
+  animation: healFlash 0.4s ease-out;
+}
+
+/* Damage Number Popup */
+@keyframes damagePopup {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.5);
+  }
+  30% {
+    transform: translateY(-20px) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(1);
+  }
+}
+
+.damage-number {
+  font-weight: bold;
+  font-size: 1.5rem;
+  color: #ff4444;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  animation: damagePopup 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.damage-number.crit {
+  font-size: 2rem;
+  color: #ff9900;
+}
+
+.heal-number {
+  font-weight: bold;
+  font-size: 1.5rem;
+  color: #44ff44;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  animation: damagePopup 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Sword Slash Animation */
+@keyframes swordSlash {
+  0% {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(45deg) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.8);
+  }
+}
+
+.sword-slash {
+  font-size: 3rem;
+  animation: swordSlash 0.4s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Arrow Animation */
+@keyframes arrowFly {
+  0% {
+    opacity: 0;
+    transform: translateX(-50px) rotate(-45deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(50px) rotate(-45deg);
+  }
+}
+
+.arrow-fly {
+  font-size: 2rem;
+  animation: arrowFly 0.5s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Magic Bolt Animation */
+@keyframes magicBolt {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+
+.magic-bolt {
+  font-size: 2.5rem;
+  animation: magicBolt 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Explosion Animation */
+@keyframes explosion {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+.explosion {
+  font-size: 3rem;
+  animation: explosion 0.5s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Poison Cloud */
+@keyframes poisonCloud {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.poison-cloud {
+  font-size: 2rem;
+  animation: poisonCloud 0.8s ease-out forwards;
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Status Effect Indicators */
+.status-poison {
+  position: relative;
+}
+
+.status-poison::after {
+  content: '☠️';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.8rem;
+  animation: pulse 1s infinite;
+}
+
+.status-burn {
+  position: relative;
+}
+
+.status-burn::after {
+  content: '🔥';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.8rem;
+  animation: pulse 1s infinite;
+}
+
+.status-slow {
+  position: relative;
+}
+
+.status-slow::after {
+  content: '❄️';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 0.8rem;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+/* Death Animation */
+@keyframes death {
+  0% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5) rotate(180deg);
+  }
+}
+
+.death-animation {
+  animation: death 0.6s ease-out forwards;
+}
+
+/* Movement Transition */
+.grid-cell {
+  transition: all 0.2s ease-out;
+}
+
+/* Shake Animation (for being hit) */
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.shake {
+  animation: shake 0.3s ease-out;
+}
+
+/* Glow Effect */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+}
+
+.glow {
+  animation: glow 1s ease-in-out infinite;
+}
+
+/* Critical Hit Star */
+@keyframes critStar {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.5) rotate(180deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.5) rotate(360deg);
+  }
+}
+
+.crit-star {
+  font-size: 3rem;
+  animation: critStar 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}

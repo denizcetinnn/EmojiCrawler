@@ -23,8 +23,8 @@ export const getRoomEmoji = (type, locked = false) => {
 };
 
 export const POTIONS = [
-  { name: 'Health Potion', type: 'potion', effect: 'Restore 5 HP', healAmount: 5, value: 15 },
-  { name: 'Energy Potion', type: 'potion', effect: 'Restore 5 Energy', energyAmount: 5, value: 12 }
+  { name: 'Health Potion', type: 'potion', effect: 'Restore 10 HP', healAmount: 10, value: 20 },
+  { name: 'Greater Health Potion', type: 'potion', effect: 'Restore 25 HP', healAmount: 25, value: 50 }
 ];
 
 export const createStartRoom = (x, y, from) => ({
@@ -44,20 +44,34 @@ export const createStartRoom = (x, y, from) => ({
   ]
 });
 
-export const createCombatRoom = (x, y, from, enemy) => ({
-  x,
-  y,
-  type: ROOM_TYPES.COMBAT,
-  name: 'Dark Corridor',
-  description: 'Shadows move in the darkness.',
-  visited: false,
-  cleared: false,
-  exits: { north: false, east: false, south: false, west: false, [from]: true },
-  enemy,
-  actions: [
-    { id: 'enemy', name: enemy.name, description: 'Engage in combat!', completed: false, mandatory: true, icon: '!' }
-  ]
-});
+export const createCombatRoom = (x, y, from, enemy) => {
+  // Support both single enemy and enemy arrays
+  const enemies = Array.isArray(enemy) ? enemy : [enemy];
+
+  // Create encounter name
+  let encounterName;
+  if (enemies.length > 1) {
+    // Show names of all enemies
+    encounterName = enemies.map(e => e.name).join(' & ');
+  } else {
+    encounterName = enemies[0].name;
+  }
+
+  return {
+    x,
+    y,
+    type: ROOM_TYPES.COMBAT,
+    name: 'Dark Corridor',
+    description: 'Shadows move in the darkness.',
+    visited: false,
+    cleared: false,
+    exits: { north: false, east: false, south: false, west: false, [from]: true },
+    enemy: enemies.length === 1 ? enemies[0] : enemies, // Store as array if multiple
+    actions: [
+      { id: 'enemy', name: encounterName, description: 'Engage in combat!', completed: false, mandatory: true, icon: '!' }
+    ]
+  };
+};
 
 export const createTreasureRoom = (x, y, from, locked = true) => ({
   x,
@@ -105,8 +119,7 @@ export const createRestRoom = (x, y, from) => ({
   cleared: false,
   exits: { north: false, east: false, south: false, west: false, [from]: true },
   actions: [
-    { id: 'rest', name: 'Rest by Fire', description: 'Recover health and energy', completed: false },
-    { id: 'meditate', name: 'Meditate', description: 'Restore energy', completed: false }
+    { id: 'rest', name: 'Rest by Fire', description: 'Recover 75% of max health', completed: false }
   ]
 });
 

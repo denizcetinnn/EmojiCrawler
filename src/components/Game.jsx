@@ -26,8 +26,7 @@ const Game = () => {
     currentRoomPos,
     floorLayout,
     player,
-    enemy,
-    combatLog,
+    combatState,
     dialogue,
     choices,
     showSkillTree,
@@ -47,7 +46,9 @@ const Game = () => {
     moveToRoom,
     handleAction,
     handleTakeItem,
-    handlePlayerMove,
+    handleCombatMove,
+    handleCombatAttack,
+    handleEndTurn,
     handleCollectGold,
     spendSkillPoint,
     equipItem,
@@ -142,12 +143,12 @@ const Game = () => {
             </>
           )}
           
-          {gameState === 'combat' && (
-            <CombatScreen 
-              enemy={enemy}
-              player={player}
-              combatLog={combatLog}
-              onPlayerMove={handlePlayerMove}
+          {gameState === 'combat' && combatState && (
+            <CombatScreen
+              combatState={combatState}
+              onMove={handleCombatMove}
+              onAttack={handleCombatAttack}
+              onEndTurn={handleEndTurn}
             />
           )}
           
@@ -168,7 +169,7 @@ const Game = () => {
         {(gameState === 'playing' || gameState === 'combat') && (
           <>
             <StatsPanel player={player} />
-            <RoomView room={getCurrentRoom()} enemy={enemy} gameState={gameState} />
+            <RoomView room={getCurrentRoom()} gameState={gameState} combatState={combatState} />
           </>
         )}
       </div>

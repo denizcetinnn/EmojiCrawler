@@ -1,4 +1,4 @@
-import { getRandomEnemy } from '../data/enemies';
+import { getRandomEnemy, getEncounterEnemies, getEnemyTier } from '../data/enemies';
 import { getRandomWeapon } from '../data/weapons';
 import { getRandomArmor } from '../data/armor';
 import { getRandomRelic } from '../data/relics';
@@ -39,23 +39,54 @@ export const generateFloor = () => {
   let furthestRoom = { x: 0, y: 0, depth: 0 };
   const generatedRooms = [];  // Store rooms to ensure minimums
   
-  while (queue.length > 0 && roomCount < targetRooms) {
+  while (roomCount < targetRooms) {
+    // If queue is empty but we haven't met minimum, add more branches
+    if (queue.length === 0 && roomCount < minRooms) {
+      // Find rooms that can have additional exits
+      const expandableRooms = layout.filter(r => {
+        const exitCount = Object.values(r.exits).filter(e => e).length;
+        return exitCount < 3; // Can add more exits
+      });
+
+      if (expandableRooms.length > 0) {
+        // Pick a random room to expand from
+        const roomToExpand = expandableRooms[Math.floor(Math.random() * expandableRooms.length)];
+        const availableDirections = ['north', 'east', 'west'].filter(dir => !roomToExpand.exits[dir]);
+
+        if (availableDirections.length > 0) {
+          const dir = availableDirections[Math.floor(Math.random() * availableDirections.length)];
+          const next = getNextPosition(roomToExpand.x, roomToExpand.y, dir);
+          const nextKey = `${next.x},${next.y}`;
+
+          if (!positions.has(nextKey)) {
+            roomToExpand.exits[dir] = true;
+            queue.push({ x: next.x, y: next.y, from: getOppositeDirection(dir), depth: 1 });
+          }
+        }
+      } else {
+        // Can't expand anymore, break out
+        break;
+      }
+    }
+
+    if (queue.length === 0) break; // No more positions to process
+
     const current = queue.shift();
     const posKey = `${current.x},${current.y}`;
-    
+
     if (positions.has(posKey)) continue;
-    
+
     positions.add(posKey);
-    
+
     // Track furthest room for boss placement
     if (current.depth > furthestRoom.depth) {
       furthestRoom = { x: current.x, y: current.y, depth: current.depth };
     }
-    
+
     // Determine room type with constraints
     let roomType = 'combat';
     const rand = Math.random();
-    
+
     // Prioritize shops if we haven't met minimum
     if (shopCount < minShops && current.depth > 3) {
       roomType = 'shop';
@@ -77,21 +108,21 @@ export const generateFloor = () => {
     } else {
       roomType = 'combat';
     }
-    
-    const room = createRoomByType(roomType, current.x, current.y, current.from);
+
+    const room = createRoomByType(roomType, current.x, current.y, current.from, current.depth);
     layout.push(room);
     generatedRooms.push({ room, depth: current.depth });
     roomCount++;
-    
-    // Add exits
+
+    // Add exits - increase chance of more exits to ensure we reach minRooms
     const directions = ['north', 'east', 'west'];
-    const numExits = Math.random() < 0.6 ? 1 : 2;
-    
+    const numExits = roomCount < minRooms ? (Math.random() < 0.7 ? 2 : 1) : (Math.random() < 0.6 ? 1 : 2);
+
     for (let i = 0; i < numExits && directions.length > 0; i++) {
       const dirIdx = Math.floor(Math.random() * directions.length);
       const dir = directions.splice(dirIdx, 1)[0];
       room.exits[dir] = true;
-      
+
       const next = getNextPosition(current.x, current.y, dir);
       if (!positions.has(`${next.x},${next.y}`)) {
         queue.push({ x: next.x, y: next.y, from: getOppositeDirection(dir), depth: current.depth + 1 });
@@ -152,10 +183,31 @@ export const generateFloor = () => {
   return layout;
 };
 
-const createRoomByType = (type, x, y, from) => {
+const createRoomByType = (type, x, y, from, roomDepth = 0) => {
   switch (type) {
     case 'combat':
-      return createCombatRoom(x, y, from, getRandomEnemy());
+      // Varied encounter types based on depth and chance
+      const encounterRoll = Math.random();
+      let encounterType = 'normal'; // 40% normal (single or duo)
+
+      if (roomDepth >= 5) {
+        // Deeper rooms have more variety
+        if (encounterRoll < 0.15) encounterType = 'swarm'; // 15% swarm
+        else if (encounterRoll < 0.3) encounterType = 'duo'; // 15% duo
+        else if (encounterRoll < 0.4) encounterType = 'ranged_melee'; // 10% mixed
+        else if (encounterRoll < 0.5) encounterType = 'elite'; // 10% elite
+        // 50% normal
+      } else if (roomDepth >= 3) {
+        // Mid-depth rooms
+        if (encounterRoll < 0.1) encounterType = 'swarm'; // 10% swarm
+        else if (encounterRoll < 0.25) encounterType = 'duo'; // 15% duo
+        // 75% normal
+      }
+      // Early rooms (depth < 3) are always 'normal'
+
+      const enemies = getEncounterEnemies(encounterType, 1); // floor is always 1 for now
+      return createCombatRoom(x, y, from, enemies.length === 1 ? enemies[0] : enemies);
+
     case 'treasure':
       return createTreasureRoom(x, y, from, true); // Locked by default
     case 'shop':
@@ -169,22 +221,47 @@ const createRoomByType = (type, x, y, from) => {
   }
 };
 
-const generateShopInventory = () => {
+const generateShopInventory = (floor = 1) => {
   const items = [];
-  
-  const maxRarity = Math.random() < 0.2 ? 5 : 3;
-  
+
+  // Floor-appropriate rarity (floor 1 = max rarity 3, later floors can be higher)
+  const maxRarity = floor === 1 ? 3 : (Math.random() < 0.2 ? 5 : 4);
+
+  // Weapons
   for (let i = 0; i < 3; i++) {
     items.push(getRandomWeapon(maxRarity));
   }
-  
+
+  // Armor
   for (let i = 0; i < 2; i++) {
     items.push(getRandomArmor(maxRarity));
   }
-  
+
+  // Relic
   items.push(getRandomRelic());
-  items.push({ ...POTIONS[0] });
-  items.push({ ...POTIONS[1] });
-  
+
+  // Floor-appropriate potions
+  // Floor 1: Only basic Health Potion (max HP is 10)
+  // Later floors: Both potions available
+  items.push({ ...POTIONS[0] }); // Health Potion (10 HP)
+  if (floor > 1) {
+    items.push({ ...POTIONS[1] }); // Greater Health Potion (25 HP)
+  } else {
+    // Add extra Health Potion on floor 1 instead
+    items.push({ ...POTIONS[0] });
+  }
+
+  // Keys (1-2 keys available, priced based on floor)
+  const numKeys = Math.random() < 0.5 ? 1 : 2;
+  for (let i = 0; i < numKeys; i++) {
+    items.push({
+      name: 'Key',
+      type: 'key',
+      effect: 'Unlocks a locked door',
+      value: 30 + (floor - 1) * 10,
+      emoji: '🔑'
+    });
+  }
+
   return items;
 };

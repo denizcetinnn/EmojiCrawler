@@ -90,15 +90,9 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
       return;
       
     case 'rest':
-      const hpRestore = Math.floor(player.maxHp * 0.5);
+      const hpRestore = Math.floor(player.maxHp * 0.75);
       updates.hp = Math.min(player.hp + hpRestore, player.maxHp);
-      updates.energy = player.maxEnergy;
-      dialogueText = `Rested and recovered ${hpRestore} HP and full energy!`;
-      break;
-      
-    case 'meditate':
-      updates.energy = player.maxEnergy;
-      dialogueText = 'You meditate and restore full energy.';
+      dialogueText = `Rested and recovered ${hpRestore} HP!`;
       break;
       
     case 'skeleton':
@@ -157,15 +151,29 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
       return;
       
     case 'enemy':
-      const enemyToFight = { ...room.enemy, hp: room.enemy.maxHp };
-      startCombat(enemyToFight);
+      // Handle both single enemy and multiple enemies
+      if (Array.isArray(room.enemy)) {
+        // Multiple enemies - reset HP for each
+        const enemiesToFight = room.enemy.map(e => ({ ...e, hp: e.maxHp }));
+        startCombat(enemiesToFight);
+      } else {
+        // Single enemy
+        const enemyToFight = { ...room.enemy, hp: room.enemy.maxHp };
+        startCombat(enemyToFight);
+      }
       return;
       
     case 'boss':
       const bossToFight = { ...room.boss, hp: room.boss.maxHp };
       startCombat(bossToFight, true); // Pass true to indicate it's a boss
       return;
-      
+
+    case 'shop':
+      setShowShop(true);
+      dialogueText = 'The mysterious merchant shows you their wares...';
+      setDialogue(dialogueText);
+      return;
+
     default:
       dialogueText = `You examine the action. Nothing happens.`;
   }

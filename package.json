@@ -4,9 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "build": "vite build",
-  "predeploy": "npm run build",
-  "deploy": "npm run build && rm -rf docs && mkdir docs && cp -R dist/* docs/ && touch docs/.nojekyll && git add -A && git commit -m 'update site' && git push origin main"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "npm run build && rm -rf docs && mkdir docs && cp -R dist/* docs/ && touch docs/.nojekyll && git add -A && git commit -m 'update site' && git push origin main"
   },
   "dependencies": {
     "lucide-react": "^0.545.0",

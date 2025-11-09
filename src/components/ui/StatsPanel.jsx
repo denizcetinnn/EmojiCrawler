@@ -30,17 +30,6 @@ const StatsPanel = ({ player }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Zap className="w-4 h-4 text-yellow-400" />
-          <div className="flex-1 bg-gray-700 rounded-full h-3">
-            <div
-              className="bg-yellow-500 h-3 rounded-full transition-all"
-              style={{ width: `${(player.energy / player.maxEnergy) * 100}%` }}
-            />
-          </div>
-          <span className="text-sm">{player.energy}/{player.maxEnergy}</span>
-        </div>
-
-        <div className="flex items-center gap-2">
           <div className="text-xs text-gray-400 flex-1">
             XP: {xpProgress} / {xpNeeded}
           </div>
@@ -65,8 +54,14 @@ const StatsPanel = ({ player }) => {
         <div className="space-y-1 text-xs">
           <div className="flex items-center gap-2">
             <Swords className="w-3 h-3" />
-            {player.equipment.weapon?.name || 'None'}
+            {player.equipment.weapon1?.name || 'Fists'}
           </div>
+          {player.equipment.weapon2 && (
+            <div className="flex items-center gap-2">
+              <Swords className="w-3 h-3 text-blue-400" />
+              <span className="text-blue-300">{player.equipment.weapon2.name}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <Shield className="w-3 h-3" />
             {player.equipment.armor?.name || 'None'}
