@@ -567,6 +567,21 @@ async function executeEnemyAction(state, enemy, action) {
 
       addLog(state, `${enemy.name} attacks for ${damage} damage!`);
 
+      // Add enemy attack animation
+      const enemyAnimType = getEnemyAttackAnimationType(enemy);
+      const enemyAnimEmoji = getEnemyAttackEmoji(enemy);
+      const midX = (enemy.position.x + state.player.position.x) / 2;
+      const midY = (enemy.position.y + state.player.position.y) / 2;
+
+      state.pendingAnimation = {
+        type: enemyAnimType,
+        emoji: enemyAnimEmoji,
+        gridPosition: { x: midX, y: midY },
+        fromGrid: { x: enemy.position.x, y: enemy.position.y },
+        toGrid: { x: state.player.position.x, y: state.player.position.y },
+        duration: 500,
+      };
+
       // Apply thorns damage
       const thornsRelic = state.player.relics?.find(r => r.type === 'thorns');
       const thornsArmor = state.player.equipment.armor?.reflectDamage;
@@ -670,6 +685,36 @@ function getTargetsInRange(state) {
   return state.enemies.filter(enemy =>
     isInRange(player.position, enemy.position, effectiveRange)
   );
+}
+
+// Get enemy attack animation type based on attack name/type
+function getEnemyAttackAnimationType(enemy) {
+  const attackName = enemy.weapon?.name?.toLowerCase() || '';
+  const enemyType = enemy.type?.toLowerCase() || '';
+
+  // Specific attack types
+  if (attackName.includes('web')) return 'magic';
+  if (attackName.includes('poison') || attackName.includes('venom')) return 'poison';
+  if (attackName.includes('fire') || attackName.includes('flame')) return 'explosion';
+  if (attackName.includes('claw')) return 'sword';
+  if (attackName.includes('bite') || attackName.includes('gnaw')) return 'sword';
+  if (attackName.includes('slash') || attackName.includes('blade')) return 'sword';
+
+  // Enemy type defaults
+  if (enemyType === 'arthropod') return 'poison';
+  if (enemyType === 'magic') return 'magic';
+  if (enemyType === 'beast') return 'sword';
+
+  return 'sword';
+}
+
+// Get enemy attack emoji based on attack name/type
+function getEnemyAttackEmoji(enemy) {
+  // Use enemy's custom attack emoji if defined
+  if (enemy.attackEmoji) return enemy.attackEmoji;
+
+  // Fallback: use enemy emoji
+  return enemy.emoji || '💥';
 }
 
 // Export helper to check if it's player's turn

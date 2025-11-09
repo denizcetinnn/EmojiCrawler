@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useGameActions } from '../hooks/useGameActions';
 
@@ -19,6 +20,7 @@ import VictoryScreen from './VictoryScreen';
 const Game = () => {
   const state = useGameState();
   const actions = useGameActions(state);
+  const [animations, setAnimations] = useState([]);
 
   const {
     gameState,
@@ -39,6 +41,22 @@ const Game = () => {
     goldChoice,
     showShop
   } = state;
+
+  // Handle enemy attack animations
+  useEffect(() => {
+    if (combatState?.pendingAnimation) {
+      const id = Date.now() + Math.random();
+      const anim = { ...combatState.pendingAnimation, id };
+      setAnimations(prev => [...prev, anim]);
+
+      setTimeout(() => {
+        setAnimations(prev => prev.filter(a => a.id !== id));
+      }, anim.duration || 800);
+
+      // Clear pending animation
+      combatState.pendingAnimation = null;
+    }
+  }, [combatState?.pendingAnimation]);
 
   const {
     getCurrentRoom,
@@ -149,6 +167,8 @@ const Game = () => {
               onMove={handleCombatMove}
               onAttack={handleCombatAttack}
               onEndTurn={handleEndTurn}
+              animations={animations}
+              setAnimations={setAnimations}
             />
           )}
           
@@ -168,8 +188,8 @@ const Game = () => {
       <div className="w-3/5 p-6 flex flex-col gap-4">
         {(gameState === 'playing' || gameState === 'combat') && (
           <>
-            <StatsPanel player={player} />
-            <RoomView room={getCurrentRoom()} gameState={gameState} combatState={combatState} />
+            <StatsPanel player={gameState === 'combat' && combatState ? combatState.player : player} />
+            <RoomView room={getCurrentRoom()} gameState={gameState} combatState={combatState} animations={animations} />
           </>
         )}
       </div>

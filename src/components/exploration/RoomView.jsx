@@ -1,6 +1,7 @@
 import { getRoomEmoji } from '../../data/roomTemplates';
+import CombatAnimation from '../combat/CombatAnimation';
 
-const RoomView = ({ room, enemy, gameState, combatState }) => {
+const RoomView = ({ room, enemy, gameState, combatState, animations = [] }) => {
   if (!room) return null;
 
   // Render a single grid cell
@@ -17,15 +18,25 @@ const RoomView = ({ room, enemy, gameState, combatState }) => {
 
     if (isPlayer) {
       bgColor = 'bg-blue-600';
+      // Show weapon emoji next to player
+      const weaponEmoji = player.weapon?.emoji || player.weapon1?.emoji || '';
       content = (
         <div className="flex flex-col items-center justify-center h-full">
-          <div className="text-2xl">🧙</div>
+          <div className="flex items-center gap-1">
+            <div className="text-2xl">🧙</div>
+            {weaponEmoji && <div className="text-sm">{weaponEmoji}</div>}
+          </div>
           <div className="text-xs text-white font-bold">{player.currentAP} AP</div>
         </div>
       );
     } else if (enemyAtPos) {
       bgColor = 'bg-red-600';
-      const inRange = Math.abs(player.position.x - x) + Math.abs(player.position.y - y) <= player.weapon.range;
+      // Apply range bonus from relics
+      const rangeBonus = player.relics?.some(r => r.type === 'range')
+        ? player.relics.find(r => r.type === 'range').rangeBonus
+        : 0;
+      const effectiveRange = player.weapon.range + rangeBonus;
+      const inRange = Math.abs(player.position.x - x) + Math.abs(player.position.y - y) <= effectiveRange;
       content = (
         <div className={`flex flex-col items-center justify-center h-full ${inRange ? 'ring-2 ring-yellow-400' : ''}`}>
           <div className="text-2xl">{enemyAtPos.emoji}</div>
@@ -65,7 +76,37 @@ const RoomView = ({ room, enemy, gameState, combatState }) => {
         </div>
       );
     }
-    return <div className="space-y-[2px]">{rows}</div>;
+    return (
+      <div className="relative">
+        <div className="space-y-[2px]">{rows}</div>
+        {/* Animation overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          {animations.map(anim => {
+            if (!anim.gridPosition) return null;
+
+            // Convert grid position to pixels
+            const cellSize = 100 / gridSize; // Percentage
+            // Add half a cell size to center on the cell
+            const pixelX = (anim.gridPosition.x * cellSize) + (cellSize / 2);
+            const pixelY = (anim.gridPosition.y * cellSize) + (cellSize / 2);
+
+            return (
+              <div
+                key={anim.id}
+                style={{
+                  position: 'absolute',
+                  left: `${pixelX}%`,
+                  top: `${pixelY}%`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                <CombatAnimation animation={anim} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   return (

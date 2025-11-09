@@ -263,16 +263,30 @@ export const useGameActions = (state) => {
     const newLevel = calculateLevel(newXp);
     const leveledUp = newLevel > player.level;
 
-    setPlayer(p => ({
-      ...p,
-      hp: finalCombatState.player.hp, // Use HP from combat
-      xp: newXp,
-      level: newLevel,
-      skillPoints: p.skillPoints + (leveledUp ? 2 : 0),
-      gold: p.gold + totalGold,
-      keys: p.keys + keyDrops,
-      defeatedBoss: isBoss ? true : p.defeatedBoss
-    }));
+    setPlayer(p => {
+      const updated = {
+        ...p,
+        hp: finalCombatState.player.hp, // Use HP from combat
+        xp: newXp,
+        level: newLevel,
+        skillPoints: p.skillPoints + (leveledUp ? 2 : 0),
+        gold: p.gold + totalGold,
+        keys: p.keys + keyDrops,
+        defeatedBoss: isBoss ? true : p.defeatedBoss
+      };
+
+      // Clean up combat-specific properties
+      delete updated.currentAP;
+      delete updated.maxAP;
+      delete updated.position;
+      delete updated.facing;
+      delete updated.statusEffects;
+      delete updated.weapon1;
+      delete updated.weapon2;
+      delete updated.weapon;
+
+      return updated;
+    });
 
     // Mark room as cleared
     const room = getCurrentRoom();

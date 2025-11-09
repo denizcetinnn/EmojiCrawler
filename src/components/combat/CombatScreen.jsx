@@ -1,14 +1,10 @@
-import { useState } from 'react';
 import { Heart, Zap, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Target } from 'lucide-react';
 import CombatLog from './CombatLog';
 import { DIRECTIONS } from '../../game/gridCombat';
-import CombatAnimation, { getWeaponAnimationType, getWeaponEmoji } from './CombatAnimation';
+import { getWeaponAnimationType, getWeaponEmoji } from './CombatAnimation';
 import '../../styles/combat-animations.css';
 
-const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn }) => {
-  const [animations, setAnimations] = useState([]);
-  const [flashingCells, setFlashingCells] = useState(new Set());
-
+const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, animations, setAnimations }) => {
   if (!combatState) return null;
 
   const { player, enemies, grid, gridSize, turn, log } = combatState;
@@ -21,20 +17,6 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn }) => {
     setTimeout(() => {
       setAnimations(prev => prev.filter(a => a.id !== id));
     }, animData.duration || 800);
-  };
-
-  // Helper to flash cell
-  const flashCell = (x, y, type = 'damage') => {
-    const key = `${x},${y}`;
-    setFlashingCells(prev => new Set([...prev, key]));
-
-    setTimeout(() => {
-      setFlashingCells(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(key);
-        return newSet;
-      });
-    }, 400);
   };
 
   // Wrapped attack handler to show animations
@@ -62,9 +44,6 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn }) => {
       duration: 500,
     });
 
-    // Flash the target cell
-    flashCell(enemy.position.x, enemy.position.y, 'damage');
-
     // Call original attack handler
     onAttack(enemy, weapon);
   };
@@ -76,121 +55,24 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn }) => {
   const canAttackWeapon1 = weapon1 && player.currentAP >= weapon1.apCost && turn === 'player';
   const canAttackWeapon2 = weapon2 && player.currentAP >= weapon2.apCost && turn === 'player';
 
-  // Render a single grid cell
-  const renderCell = (x, y) => {
-    const tile = grid[y][x];
-    const isPlayer = player.position.x === x && player.position.y === y;
-    const enemy = enemies.find(e => e.position.x === x && e.position.y === y);
-    const cellKey = `${x},${y}`;
-    const isFlashing = flashingCells.has(cellKey);
 
-    let bgColor = 'bg-gray-800';
-    let content = null;
-    let statusEffectClass = '';
 
-    if (isPlayer) {
-      bgColor = 'bg-blue-600';
-      content = (
-        <div className="flex flex-col items-center justify-center h-full">
-          <div className="text-2xl">🧙</div>
-          <div className="text-xs text-white font-bold">{player.currentAP} AP</div>
-        </div>
-      );
-    } else if (enemy) {
-      bgColor = 'bg-red-600';
-      const inRange = Math.abs(player.position.x - x) + Math.abs(player.position.y - y) <= player.weapon.range;
+  // Calculate range bonus from relics
+  const rangeBonus = player.relics?.some(r => r.type === 'range')
+    ? player.relics.find(r => r.type === 'range').rangeBonus
+    : 0;
 
-      // Status effects
-      if (enemy.statusEffects?.some(e => e.type === 'poison')) {
-        statusEffectClass = 'status-poison';
-      } else if (enemy.statusEffects?.some(e => e.type === 'burn')) {
-        statusEffectClass = 'status-burn';
-      } else if (enemy.statusEffects?.some(e => e.type === 'slow')) {
-        statusEffectClass = 'status-slow';
-      }
-
-      content = (
-        <div className={`flex flex-col items-center justify-center h-full ${inRange ? 'ring-2 ring-yellow-400' : ''} ${statusEffectClass}`}>
-          <div className="text-2xl">{enemy.emoji}</div>
-          <div className="text-xs text-white font-bold">{enemy.hp}/{enemy.maxHp}</div>
-        </div>
-      );
-    } else if (tile.obstacle) {
-      bgColor = 'bg-gray-600';
-      content = <div className="text-2xl">🪨</div>;
-    }
-
-    return (
-      <div
-        key={`${x}-${y}`}
-        className={`${bgColor} border border-gray-700 flex items-center justify-center relative grid-cell ${isFlashing ? 'damage-flash' : ''}`}
-        style={{ aspectRatio: '1' }}
-      >
-        {content}
-        {/* Grid coordinates for debugging */}
-        {/* <div className="absolute top-0 left-0 text-[8px] text-gray-500">{x},{y}</div> */}
-      </div>
-    );
-  };
-
-  // Render the combat grid
-  const renderGrid = () => {
-    const rows = [];
-    for (let y = 0; y < gridSize; y++) {
-      const cells = [];
-      for (let x = 0; x < gridSize; x++) {
-        cells.push(renderCell(x, y));
-      }
-      rows.push(
-        <div key={y} className="grid" style={{ gridTemplateColumns: `repeat(${gridSize}, 1fr)`, gap: '2px' }}>
-          {cells}
-        </div>
-      );
-    }
-    return (
-      <div className="relative">
-        <div className="space-y-[2px]">{rows}</div>
-        {/* Animation overlay */}
-        <div className="absolute inset-0 pointer-events-none">
-          {animations.map(anim => {
-            if (!anim.gridPosition) return null;
-
-            // Convert grid position to pixels
-            // Each cell is roughly equal size, calculate based on grid
-            const cellSize = 100 / gridSize; // Percentage
-            const pixelX = anim.gridPosition.x * cellSize;
-            const pixelY = anim.gridPosition.y * cellSize;
-
-            return (
-              <div
-                key={anim.id}
-                style={{
-                  position: 'absolute',
-                  left: `${pixelX}%`,
-                  top: `${pixelY}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-              >
-                <CombatAnimation animation={anim} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Get targets in range for each weapon
+  // Get targets in range for each weapon (with range bonus)
   const weapon1Targets = enemies.filter(enemy => {
     const distance = Math.abs(player.position.x - enemy.position.x) +
                      Math.abs(player.position.y - enemy.position.y);
-    return distance <= weapon1.range;
+    return distance <= (weapon1.range + rangeBonus);
   });
 
   const weapon2Targets = weapon2 ? enemies.filter(enemy => {
     const distance = Math.abs(player.position.x - enemy.position.x) +
                      Math.abs(player.position.y - enemy.position.y);
-    return distance <= weapon2.range;
+    return distance <= (weapon2.range + rangeBonus);
   }) : [];
 
   // Check if player can see enemy intents

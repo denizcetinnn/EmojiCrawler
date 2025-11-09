@@ -21,6 +21,7 @@ export const ENEMIES = [
     xpReward: 5,
     goldReward: 2,
     emoji: '🕷️',
+    attackEmoji: '🕸️', // Spider web attack
     description: 'Quick and evasive. Prefers corners and hit-and-run tactics.',
     abilities: [],
     spawnType: 'spider', // For special positioning
@@ -41,6 +42,7 @@ export const ENEMIES = [
     xpReward: 6,
     goldReward: 3,
     emoji: '🐀',
+    attackEmoji: '🦷', // Teeth/bite
     description: 'Often travels in packs. Tries to surround prey.',
     abilities: [],
     spawnType: 'swarm',
@@ -62,6 +64,7 @@ export const ENEMIES = [
     xpReward: 10,
     goldReward: 5,
     emoji: '🐺',
+    attackEmoji: '🦷', // Fangs/bite
     description: 'Relentless hunter. Charges without hesitation.',
     abilities: [],
     spawnType: 'aggressive',
@@ -84,6 +87,7 @@ export const ENEMIES = [
     xpReward: 15,
     goldReward: 8,
     emoji: '💀',
+    attackEmoji: '⚔️', // Sword slash
     description: 'Guards corners defensively. Can push enemies back.',
     abilities: ['push'],
     defense: 2,
@@ -105,6 +109,7 @@ export const ENEMIES = [
     xpReward: 18,
     goldReward: 15,
     emoji: '👺',
+    attackEmoji: '🗡️', // Dagger stab
     description: 'Sneaky and cunning. Circles around to stab from behind.',
     abilities: ['steal'],
     spawnType: 'ambusher',
@@ -125,6 +130,7 @@ export const ENEMIES = [
     xpReward: 20,
     goldReward: 10,
     emoji: '👹',
+    attackEmoji: '🔨', // Club smash
     description: 'Massive and strong. Smashes anything in its path.',
     abilities: [],
     defense: 1,
@@ -146,6 +152,7 @@ export const ENEMIES = [
     xpReward: 16,
     goldReward: 8,
     emoji: '💀',
+    attackEmoji: '🏹', // Arrow
     description: 'Keeps distance with ranged attacks. Retreats when approached.',
     abilities: [],
     spawnType: 'defensive',
@@ -164,6 +171,7 @@ export const ENEMIES = [
       damage: 4,
       range: 3,
       apCost: 2,
+    attackEmoji: '✨', // Dark magic
     },
     xpReward: 25,
     goldReward: 20,
@@ -516,7 +524,7 @@ export const processStatusEffects = enemy => {
         results.push({
           type: 'poison',
           damage: effect.damage,
-          message: `${enemy.name} takes ${effect.damage} poison damage!`,
+          message: `${enemy.name} takes ${effect.damage} poison damage (${effect.duration} turns left)`,
         });
         break;
 
@@ -524,7 +532,7 @@ export const processStatusEffects = enemy => {
         enemy.currentAP = Math.max(1, enemy.ap - 1);
         results.push({
           type: 'slow',
-          message: `${enemy.name} is slowed!`,
+          message: `${enemy.name} is slowed (-1 AP, ${effect.duration} turns left)`,
         });
         break;
 
@@ -533,13 +541,21 @@ export const processStatusEffects = enemy => {
         results.push({
           type: 'burn',
           damage: effect.damage,
-          message: `${enemy.name} burns for ${effect.damage} damage!`,
+          message: `${enemy.name} burns for ${effect.damage} damage (${effect.duration} turns left)`,
         });
         break;
     }
 
     // Decrement duration
     effect.duration--;
+
+    // Check if effect expired
+    if (effect.duration === 0) {
+      results.push({
+        type: `${effect.type}_expire`,
+        message: `${enemy.name}'s ${effect.type} effect has worn off.`,
+      });
+    }
   }
 
   // Remove expired effects

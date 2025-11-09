@@ -46,7 +46,7 @@ const CombatAnimation = ({ animation, onComplete }) => {
     case 'arrow':
       return (
         <div className="arrow-fly">
-          {emoji || '🏹'}
+          {emoji || '➔'}
         </div>
       );
 
@@ -141,12 +141,14 @@ export const getWeaponAnimationType = (weapon) => {
 export const getWeaponEmoji = (weapon) => {
   if (!weapon) return '⚔️';
 
-  if (weapon.emoji) return weapon.emoji;
-
   const category = weapon.category || 'melee';
 
   if (category === 'ranged') {
-    return '🏹';
+    // For bows, show arrow in animation (not the bow itself)
+    if (weapon.name?.toLowerCase().includes('bow')) return '➔';
+    // For throwing weapons, show the weapon emoji or default
+    if (weapon.emoji) return weapon.emoji;
+    return '🪃';
   }
 
   if (category === 'magic') {
@@ -157,6 +159,8 @@ export const getWeaponEmoji = (weapon) => {
     return '✨';
   }
 
+  // Melee weapons - use weapon emoji if available
+  if (weapon.emoji) return weapon.emoji;
   return '⚔️';
 };
 
