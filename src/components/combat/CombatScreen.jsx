@@ -4,10 +4,10 @@ import { DIRECTIONS } from '../../game/gridCombat';
 import { getWeaponAnimationType, getWeaponEmoji } from './CombatAnimation';
 import '../../styles/combat-animations.css';
 
-const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, animations, setAnimations }) => {
+const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, onTeleport, onToggleTeleportMode, animations, setAnimations }) => {
   if (!combatState) return null;
 
-  const { player, enemies, grid, gridSize, turn, log } = combatState;
+  const { player, enemies, grid, gridSize, turn, log, teleportMode, blinkDaggerUsed } = combatState;
 
   // Helper to add animation
   const addAnimation = (animData) => {
@@ -80,6 +80,30 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, animations, se
   const hasHighInt = player.stats?.int >= 5;
   const canSeeIntents = hasTacticalManual || hasHighInt;
 
+  // Get enemy AI decisions if player can see intents
+  const getEnemyIntent = (enemy) => {
+    if (!canSeeIntents) return null;
+
+    const { makeEnemyDecision } = require('../../game/combatAI');
+    const actions = makeEnemyDecision(enemy, player, enemies, grid, gridSize);
+
+    if (!actions || actions.length === 0) return 'Idle';
+
+    const firstAction = actions[0];
+    switch (firstAction.type) {
+      case 'attack':
+        return '⚔️ Will attack';
+      case 'move':
+        return '🏃 Will move';
+      case 'defend':
+        return '🛡️ Will defend';
+      case 'special':
+        return `✨ ${firstAction.ability}`;
+      default:
+        return 'Unknown';
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Combat Status Bar */}
@@ -151,9 +175,14 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, animations, se
                   <span className="text-xs text-gray-400">{enemy.hp}/{enemy.maxHp}</span>
                 </div>
                 {canSeeIntents && (
-                  <div className="text-xs text-blue-300 mt-1">
-                    <Zap className="w-3 h-3 inline mr-1" />
-                    AP: {enemy.currentAP}/{enemy.ap}
+                  <div className="text-xs text-blue-300 mt-1 space-y-1">
+                    <div>
+                      <Zap className="w-3 h-3 inline mr-1" />
+                      AP: {enemy.currentAP || enemy.ap}/{enemy.ap}
+                    </div>
+                    <div className="text-yellow-300 font-semibold">
+                      {getEnemyIntent(enemy)}
+                    </div>
                   </div>
                 )}
               </div>
@@ -266,6 +295,25 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, animations, se
           <div></div>
         </div>
       </div>
+
+      {/* Blink Dagger - Teleport Ability */}
+      {player.relics?.some(r => r.type === 'teleport') && (
+        <div className="bg-gray-700 p-3 rounded">
+          <h4 className="text-sm font-semibold text-gray-400 mb-2">Special Ability</h4>
+          <button
+            onClick={onToggleTeleportMode}
+            disabled={blinkDaggerUsed || turn !== 'player'}
+            className={`w-full ${teleportMode ? 'bg-purple-600' : 'bg-purple-700'} hover:bg-purple-600 disabled:bg-gray-800 disabled:text-gray-600 px-3 py-2 rounded text-sm font-semibold transition-colors`}
+          >
+            {blinkDaggerUsed ? '✨ Blink Dagger (Used)' : teleportMode ? '✨ Cancel Teleport' : '✨ Blink Dagger (3 tiles)'}
+          </button>
+          {teleportMode && (
+            <div className="text-xs text-purple-300 mt-2">
+              Click on a tile to teleport (up to 3 tiles away)
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Combat Log */}
       <div className="bg-gray-700 p-3 rounded">

@@ -201,6 +201,25 @@ export const useGameActions = (state) => {
     }
   };
 
+  const handleCombatTeleport = (targetPos) => {
+    if (!combatState || combatState.turn !== 'player') return;
+
+    const { processTeleport } = require('../game/combatSystem.js');
+    const result = processTeleport(combatState, targetPos);
+
+    if (result.success) {
+      setCombatState({ ...result.state });
+    }
+  };
+
+  const toggleTeleportMode = () => {
+    if (!combatState) return;
+    setCombatState({
+      ...combatState,
+      teleportMode: !combatState.teleportMode
+    });
+  };
+
   const handleEndTurn = async () => {
     if (!combatState || combatState.turn !== 'player') return;
 
@@ -558,6 +577,8 @@ export const useGameActions = (state) => {
     startCombat,
     handleCombatMove,
     handleCombatAttack,
+    handleCombatTeleport,
+    toggleTeleportMode,
     handleEndTurn,
     handleCollectGold,
     spendSkillPoint,

@@ -1,20 +1,32 @@
 import { getRoomEmoji } from '../../data/roomTemplates';
 import CombatAnimation from '../combat/CombatAnimation';
 
-const RoomView = ({ room, enemy, gameState, combatState, animations = [] }) => {
+const RoomView = ({ room, enemy, gameState, combatState, animations = [], onTeleport }) => {
   if (!room) return null;
 
   // Render a single grid cell
   const renderCell = (x, y) => {
     if (!combatState) return null;
 
-    const { player, enemies, grid } = combatState;
+    const { player, enemies, grid, teleportMode } = combatState;
     const tile = grid[y][x];
     const isPlayer = player.position.x === x && player.position.y === y;
     const enemyAtPos = enemies.find(e => e.position.x === x && e.position.y === y);
 
+    // Calculate if this tile is a valid teleport target
+    const isValidTeleport = teleportMode && !tile.occupied && !tile.obstacle;
+    const distance = Math.abs(player.position.x - x) + Math.abs(player.position.y - y);
+    const blinkRelic = player.relics?.find(r => r.type === 'teleport');
+    const maxRange = blinkRelic?.teleportRange || 3;
+    const inTeleportRange = distance <= maxRange && distance > 0;
+
     let bgColor = 'bg-gray-800';
     let content = null;
+
+    // Highlight valid teleport tiles
+    if (isValidTeleport && inTeleportRange) {
+      bgColor = 'bg-purple-500/30';
+    }
 
     if (isPlayer) {
       bgColor = 'bg-blue-600';
@@ -48,13 +60,26 @@ const RoomView = ({ room, enemy, gameState, combatState, animations = [] }) => {
       content = <div className="text-2xl">🪨</div>;
     }
 
+    // Handle tile click for teleport
+    const handleClick = () => {
+      if (teleportMode && isValidTeleport && inTeleportRange && onTeleport) {
+        onTeleport({ x, y });
+      }
+    };
+
     return (
       <div
         key={`${x}-${y}`}
-        className={`${bgColor} border border-gray-700 flex items-center justify-center relative`}
+        className={`${bgColor} border border-gray-700 flex items-center justify-center relative ${teleportMode && isValidTeleport && inTeleportRange ? 'cursor-pointer hover:bg-purple-400/50' : ''}`}
         style={{ aspectRatio: '1' }}
+        onClick={handleClick}
       >
         {content}
+        {isValidTeleport && inTeleportRange && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-purple-300 text-2xl">✨</div>
+          </div>
+        )}
       </div>
     );
   };

@@ -85,6 +85,8 @@ export function initializeCombat(player, enemies, isBoss = false) {
     lastStandUsed: false, // Track if last stand has been used (for last_stand relic)
     secondWindUsed: false, // Track if second wind has been used (for second_wind relic)
     revengeTurnsLeft: 0, // Track revenge buff duration
+    blinkDaggerUsed: false, // Track if Blink Dagger has been used this combat
+    teleportMode: false, // Track if player is selecting teleport destination
   };
 
   // Add initial log message
@@ -1035,4 +1037,53 @@ export function isPlayerTurn(state) {
 // Export helper to check if combat is over
 export function isCombatOver(state) {
   return !state.combatActive;
+}
+
+// Teleport player (for Blink Dagger relic)
+export function processTeleport(state, targetPos) {
+  const player = state.player;
+
+  // Check if player has Blink Dagger
+  const blinkRelic = player.relics?.find(r => r.type === 'teleport');
+  if (!blinkRelic) {
+    return { success: false, message: 'No teleport ability!' };
+  }
+
+  // Check if already used this combat
+  if (state.blinkDaggerUsed) {
+    return { success: false, message: 'Blink Dagger already used this combat!' };
+  }
+
+  // Check if target position is valid
+  if (
+    targetPos.x < 0 ||
+    targetPos.x >= state.gridSize ||
+    targetPos.y < 0 ||
+    targetPos.y >= state.gridSize
+  ) {
+    return { success: false, message: 'Invalid teleport location!' };
+  }
+
+  // Check if tile is occupied
+  if (state.grid[targetPos.y][targetPos.x].occupied) {
+    return { success: false, message: 'Tile is occupied!' };
+  }
+
+  // Check if within range
+  const distance = getDistance(player.position, targetPos);
+  const maxRange = blinkRelic.teleportRange || 3;
+  if (distance > maxRange) {
+    return { success: false, message: `Too far! Max range: ${maxRange}` };
+  }
+
+  // Perform teleport
+  state.grid[player.position.y][player.position.x].occupied = null;
+  state.grid[targetPos.y][targetPos.x].occupied = 'player';
+  player.position = targetPos;
+  state.blinkDaggerUsed = true;
+  state.teleportMode = false;
+
+  addLog(state, `You blink to a new position!`);
+
+  return { success: true, state };
 }

@@ -170,6 +170,11 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
       return;
 
     case 'shop':
+      if (room.shopActive === false) {
+        dialogueText = 'The shopkeeper refuses to do business with you after your insult.';
+        setDialogue(dialogueText);
+        return;
+      }
       setShowShop(true);
       dialogueText = 'The mysterious merchant shows you their wares...';
       setDialogue(dialogueText);

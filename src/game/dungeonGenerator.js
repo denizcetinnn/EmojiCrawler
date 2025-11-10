@@ -246,21 +246,35 @@ const createRoomByType = (type, x, y, from, roomDepth = 0, floor = 1) => {
 const generateShopInventory = (floor = 1) => {
   const items = [];
 
-  // Floor-appropriate rarity (floor 1 = max rarity 3, floor 2+ = max rarity 4-5)
-  const maxRarity = floor === 1 ? 3 : (Math.random() < 0.3 ? 5 : 4);
+  // Floor-based rarity distributions
+  const floor1Weights = {
+    common: { common: 0.5, rare: 0.4, epic: 0.1 },
+    rare: { common: 0.3, rare: 0.5, epic: 0.2 },
+    epic: { common: 0.1, rare: 0.3, epic: 0.6 }
+  };
 
-  // Weapons
-  for (let i = 0; i < 3; i++) {
-    items.push(getRandomWeapon(maxRarity));
-  }
+  const floor2Weights = {
+    common: { common: 0.3, rare: 0.5, epic: 0.2 },
+    rare: { common: 0.2, rare: 0.4, epic: 0.4 },
+    epic: { common: 0.1, rare: 0.2, epic: 0.7 }
+  };
 
-  // Armor
-  for (let i = 0; i < 2; i++) {
-    items.push(getRandomArmor(maxRarity));
-  }
+  const rarityWeights = floor === 1 ? floor1Weights : floor2Weights;
 
-  // Relic
-  items.push(getRandomRelic());
+  // Weapons - mix of rarities
+  // 1 common-weighted, 1 rare-weighted, 1 epic-weighted
+  items.push(getRandomWeapon(rarityWeights.common));
+  items.push(getRandomWeapon(rarityWeights.rare));
+  items.push(getRandomWeapon(rarityWeights.epic));
+
+  // Armor - mix of rarities
+  // 1 common/rare-weighted, 1 rare/epic-weighted
+  items.push(getRandomArmor(rarityWeights.common));
+  items.push(getRandomArmor(rarityWeights.rare));
+
+  // Relic - use appropriate rarity for floor
+  const relicWeights = floor === 1 ? { rare: 0.6, epic: 0.4 } : { rare: 0.4, epic: 0.6 };
+  items.push(getRandomRelic(relicWeights));
 
   // Floor-appropriate potions
   // Floor 1: Only basic Health Potion (max HP is 10)

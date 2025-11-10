@@ -66,6 +66,8 @@ const Game = () => {
     handleTakeItem,
     handleCombatMove,
     handleCombatAttack,
+    handleCombatTeleport,
+    toggleTeleportMode,
     handleEndTurn,
     handleCollectGold,
     spendSkillPoint,
@@ -185,6 +187,8 @@ const Game = () => {
               combatState={combatState}
               onMove={handleCombatMove}
               onAttack={handleCombatAttack}
+              onTeleport={handleCombatTeleport}
+              onToggleTeleportMode={toggleTeleportMode}
               onEndTurn={handleEndTurn}
               animations={animations}
               setAnimations={setAnimations}
@@ -208,7 +212,13 @@ const Game = () => {
         {(gameState === 'playing' || gameState === 'combat') && (
           <>
             <StatsPanel player={gameState === 'combat' && combatState ? combatState.player : player} />
-            <RoomView room={getCurrentRoom()} gameState={gameState} combatState={combatState} animations={animations} />
+            <RoomView
+              room={getCurrentRoom()}
+              gameState={gameState}
+              combatState={combatState}
+              animations={animations}
+              onTeleport={handleCombatTeleport}
+            />
           </>
         )}
       </div>
