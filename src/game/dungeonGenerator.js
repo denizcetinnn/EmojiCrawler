@@ -253,24 +253,39 @@ const generateShopInventory = (floor = 1) => {
     epic: { common: 0.1, rare: 0.3, epic: 0.6 }
   };
 
+  // Floor 2 shops prioritize high-quality gear for endgame players
   const floor2Weights = {
-    common: { common: 0.3, rare: 0.5, epic: 0.2 },
-    rare: { common: 0.2, rare: 0.4, epic: 0.4 },
-    epic: { common: 0.1, rare: 0.2, epic: 0.7 }
+    common: { common: 0.1, rare: 0.4, epic: 0.5 }, // Even "common" slot has good stuff
+    rare: { common: 0, rare: 0.3, epic: 0.7 }, // Mostly epic
+    epic: { common: 0, rare: 0.1, epic: 0.9 }, // Almost guaranteed epic
+    legendary: { common: 0, rare: 0, epic: 0.6, legendary: 0.4 } // Chance for legendary
   };
 
   const rarityWeights = floor === 1 ? floor1Weights : floor2Weights;
 
   // Weapons - mix of rarities
-  // 1 common-weighted, 1 rare-weighted, 1 epic-weighted
-  items.push(getRandomWeapon(rarityWeights.common));
-  items.push(getRandomWeapon(rarityWeights.rare));
-  items.push(getRandomWeapon(rarityWeights.epic));
+  if (floor === 1) {
+    // Floor 1: 1 common-weighted, 1 rare-weighted, 1 epic-weighted
+    items.push(getRandomWeapon(rarityWeights.common));
+    items.push(getRandomWeapon(rarityWeights.rare));
+    items.push(getRandomWeapon(rarityWeights.epic));
+  } else {
+    // Floor 2: Higher quality, include legendary chance
+    items.push(getRandomWeapon(rarityWeights.rare));
+    items.push(getRandomWeapon(rarityWeights.epic));
+    items.push(getRandomWeapon(rarityWeights.legendary)); // Potential legendary
+  }
 
   // Armor - mix of rarities
-  // 1 common/rare-weighted, 1 rare/epic-weighted
-  items.push(getRandomArmor(rarityWeights.common));
-  items.push(getRandomArmor(rarityWeights.rare));
+  if (floor === 1) {
+    // Floor 1: 1 common/rare-weighted, 1 rare/epic-weighted
+    items.push(getRandomArmor(rarityWeights.common));
+    items.push(getRandomArmor(rarityWeights.rare));
+  } else {
+    // Floor 2: Higher quality options
+    items.push(getRandomArmor(rarityWeights.epic));
+    items.push(getRandomArmor(rarityWeights.legendary)); // Potential legendary
+  }
 
   // Relic - use appropriate rarity for floor
   const relicWeights = floor === 1 ? { rare: 0.6, epic: 0.4 } : { rare: 0.4, epic: 0.6 };

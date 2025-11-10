@@ -35,6 +35,19 @@ export function initializeCombat(player, enemies, isBoss = false) {
   const gridSize = isBoss ? GRID_SIZE_BOSS : GRID_SIZE_NORMAL;
   const { grid } = initializeCombatGrid(isBoss);
 
+  // Ensure enemies is an array
+  if (!Array.isArray(enemies)) {
+    enemies = [enemies];
+  }
+
+  // Filter out any invalid enemies
+  enemies = enemies.filter(e => e && e.name && e.hp > 0);
+
+  if (enemies.length === 0) {
+    console.error('No valid enemies provided to initializeCombat');
+    return null;
+  }
+
   // Determine enemy type for positioning
   const enemyType = enemies[0]?.spawnType || 'aggressive';
 
@@ -44,9 +57,29 @@ export function initializeCombat(player, enemies, isBoss = false) {
 
   // Position enemies
   enemies.forEach((enemy, index) => {
+    // Ensure enemy has a valid weapon
+    if (!enemy.weapon || !enemy.weapon.damage || !enemy.weapon.range || !enemy.weapon.apCost) {
+      console.warn(`Enemy ${enemy.name} has invalid weapon, using default`);
+      enemy.weapon = {
+        name: 'Attack',
+        damage: 3,
+        range: 1,
+        apCost: 1,
+      };
+    }
+
+    // Ensure enemy has valid stats
+    if (!enemy.ap || enemy.ap < 1) {
+      enemy.ap = 2;
+    }
+    if (!enemy.maxHp || enemy.maxHp < 1) {
+      enemy.maxHp = enemy.hp || 10;
+    }
+
     const enemyPos = getEnemyStartPosition(gridSize, enemyType, index);
     enemy.position = enemyPos;
     enemy.facing = DIRECTIONS.west; // Start facing player
+    enemy.currentAP = enemy.ap; // Initialize current AP
     grid[enemyPos.y][enemyPos.x].occupied = enemy.id;
   });
 
