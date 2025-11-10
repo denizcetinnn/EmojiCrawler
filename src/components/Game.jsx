@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useGameActions } from '../hooks/useGameActions';
+import { initializeDebugMode } from '../utils/debug';
 
 import IntroScreen from './IntroScreen';
 import GameOverScreen from './GameOverScreen';
@@ -89,8 +90,20 @@ const Game = () => {
     return () => window.removeEventListener('descendFloor', handleDescend);
   }, [descendFloor]);
 
+  // Initialize debug mode (development only)
+  useEffect(() => {
+    initializeDebugMode(state, actions);
+  }, []);
+
   return (
     <div className="w-full h-screen bg-gray-900 text-white flex">
+      {/* Debug Mode Indicator */}
+      {import.meta.env.MODE === 'development' && (
+        <div className="fixed top-2 right-2 z-50 bg-yellow-500 text-black px-3 py-1 rounded text-xs font-bold">
+          DEBUG MODE - Press F12 and type: debug.help()
+        </div>
+      )}
+
       <div className="w-2/5 p-6 flex flex-col gap-4 overflow-y-auto border-r border-gray-700">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-3xl font-bold">The Dungeon Below</h1>

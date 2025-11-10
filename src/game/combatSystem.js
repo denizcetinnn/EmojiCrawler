@@ -816,10 +816,12 @@ async function executeEnemyAction(state, enemy, action) {
         break;
       }
 
-      // Apply damage
-      state.player.hp -= damage;
+      // Apply damage (unless god mode is active)
+      if (!window._godMode) {
+        state.player.hp -= damage;
+      }
 
-      addLog(state, `${enemy.name} attacks for ${damage} damage!`);
+      addLog(state, `${enemy.name} attacks for ${damage} damage!${window._godMode ? ' (GOD MODE - No damage taken)' : ''}`);
 
       // Smoke Bomb - chance to teleport when hit
       const smokeBombRelic = relics.find(r => r.type === 'evasive_teleport');
