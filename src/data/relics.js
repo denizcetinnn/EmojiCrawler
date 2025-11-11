@@ -135,9 +135,10 @@ export const RELICS = [
   },
   {
     name: 'Second Wind Charm',
-    effect: 'Once per combat: restore full AP when below 30% HP',
+    effect: 'Once per combat: gain +2 AP next turn after dropping below 50% HP',
     type: 'second_wind',
-    hpThreshold: 0.3,
+    hpThreshold: 0.5,
+    apBonus: 2,
     usesPerCombat: 1,
     value: 80,
     rarity: 'epic',
@@ -520,7 +521,7 @@ export const calculateRelicAPBonus = relics => {
   let apBonus = 0;
 
   relics.forEach(relic => {
-    if (relic.type === 'stat_and_ap' || relic.type === 'maxap') {
+    if (relic.type === 'stat_and_ap' || relic.type === 'maxap' || relic.type === 'life_drain_ap') {
       apBonus += relic.apBonus || 0;
     }
   });

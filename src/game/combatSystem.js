@@ -85,7 +85,7 @@ export function initializeCombat(player, enemies, isBoss = false) {
 
   // Calculate player's max AP
   const baseAP = 3;
-  const dexBonus = Math.floor(player.stats.dex / 3); // +1 AP per 3 DEX
+  const dexBonus = Math.floor(player.stats.dex / 3); // +1 AP per 3 DEX (no cap)
   const armorMod = getArmorAPModifier(player.equipment.armor);
   const relicBonus = calculateRelicAPBonus(player.relics || []);
   const maxAP = baseAP + dexBonus + armorMod + relicBonus;
@@ -117,6 +117,7 @@ export function initializeCombat(player, enemies, isBoss = false) {
     firstAttackUsed: false, // Track if first attack has been made (for first_strike_immunity relic)
     lastStandUsed: false, // Track if last stand has been used (for last_stand relic)
     secondWindUsed: false, // Track if second wind has been used (for second_wind relic)
+    secondWindTriggered: false, // Track if second wind should activate next turn
     revengeTurnsLeft: 0, // Track revenge buff duration
     blinkDaggerUsed: false, // Track if Blink Dagger has been used this combat
     teleportMode: false, // Track if player is selecting teleport destination
@@ -456,7 +457,17 @@ function getAffectedEnemies(state, weapon, attackerPos, targetPos) {
 
 // Calculate damage for combat attacks
 function calculateCombatDamage(attacker, defender, weapon, state) {
-  let damage = weapon.damage + (attacker.stats.str || 0);
+  // New STR scaling: percentage-based to favor high-damage weapons
+  // Formula: base_damage + floor(base_damage * STR * 0.12)
+  const strBonus = Math.floor(weapon.damage * (attacker.stats.str || 0) * 0.12);
+
+  // INT scaling for magic weapons
+  let intBonus = 0;
+  if (weapon.category === 'magic' && attacker.stats.int) {
+    intBonus = Math.floor(attacker.stats.int * 0.5);
+  }
+
+  let damage = weapon.damage + strBonus + intBonus;
 
   // Glass Cannon - bonus damage
   const glassCannonRelic = attacker.relics?.find(r => r.type === 'glass_cannon');
@@ -501,6 +512,12 @@ function calculateCombatDamage(attacker, defender, weapon, state) {
   if (weapon.critBonus) {
     baseCritChance += weapon.critBonus;
   }
+  // Multi-AP weapon bonuses
+  if (weapon.apCost === 2) {
+    baseCritChance += 0.15; // +15% crit for 2AP weapons
+  } else if (weapon.apCost >= 3) {
+    baseCritChance += 0.25; // +25% crit for 3AP weapons
+  }
   if (hasRelicOfType(attacker.relics, 'crit')) {
     baseCritChance += attacker.relics.find(r => r.type === 'crit').critBonus;
   }
@@ -537,8 +554,16 @@ function calculateCombatDamage(attacker, defender, weapon, state) {
     damage *= multiplier;
   }
 
-  // Apply defender's defense
-  const defense = defender.defense || 0;
+  // Apply defender's defense with armor penetration
+  let defense = defender.defense || 0;
+
+  // Multi-AP weapons have armor penetration
+  if (weapon.apCost === 2) {
+    defense = Math.max(0, defense - 1); // 2AP weapons ignore 1 armor
+  } else if (weapon.apCost >= 3) {
+    defense = 0; // 3AP weapons ignore ALL armor
+  }
+
   const finalDamage = Math.max(1, Math.floor(damage - defense)); // Minimum 1 damage
 
   return {
@@ -658,28 +683,8 @@ function handleEnemyDefeat(state, enemy) {
 
 // End player turn and start enemy turns
 export function endPlayerTurn(state) {
-  // Second Wind - restore full AP when below threshold (once per combat)
-  const secondWindRelic = state.player.relics?.find(r => r.type === 'second_wind');
-  if (secondWindRelic && !state.secondWindUsed) {
-    const hpPercent = state.player.hp / state.player.maxHp;
-    if (hpPercent < secondWindRelic.hpThreshold) {
-      state.secondWindUsed = true;
-      state.player.currentAP = state.player.maxAP;
-      addLog(state, 'Second Wind activates! Full AP restored!');
-      return state; // Don't reset AP normally if Second Wind triggered
-    }
-  }
-
   // Reset player AP for next turn
   state.player.currentAP = state.player.maxAP;
-
-  // Death Pact - lose HP per turn for bonus AP
-  const deathPactRelic = state.player.relics?.find(r => r.type === 'life_drain_ap');
-  if (deathPactRelic) {
-    const hpCost = deathPactRelic.hpCostPerTurn || 1;
-    state.player.hp = Math.max(1, state.player.hp - hpCost); // Never kill player with this
-    addLog(state, `Death Pact drains ${hpCost} HP.`);
-  }
 
   // Apply regeneration relics
   const regenRelic = state.player.relics?.find(r => r.type === 'regeneration');
@@ -760,6 +765,25 @@ export async function processEnemyTurns(state, onUpdate) {
   if (state.player.hp > 0) {
     state.turn = 'player';
     addLog(state, '--- Your Turn ---');
+
+    // Death Pact - lose HP at start of turn for bonus AP
+    const deathPactRelic = state.player.relics?.find(r => r.type === 'life_drain_ap');
+    if (deathPactRelic) {
+      const hpCost = deathPactRelic.hpCostPerTurn || 1;
+      state.player.hp = Math.max(1, state.player.hp - hpCost); // Never kill player with this
+      addLog(state, `☠️ Death Pact drains ${hpCost} HP.`);
+    }
+
+    // Second Wind - grant bonus AP if triggered during enemy turns
+    if (state.secondWindTriggered) {
+      const secondWindRelic = state.player.relics?.find(r => r.type === 'second_wind');
+      if (secondWindRelic) {
+        const bonusAP = secondWindRelic.apBonus || 2;
+        state.player.currentAP += bonusAP;
+        addLog(state, `💨 Second Wind activates! You gain +${bonusAP} AP this turn (${state.player.currentAP}/${state.player.maxAP})!`);
+        state.secondWindTriggered = false; // Reset flag after use
+      }
+    }
   } else {
     // Player died during enemy turn
     addLog(state, 'You have been defeated!');
@@ -822,6 +846,17 @@ async function executeEnemyAction(state, enemy, action) {
       }
 
       addLog(state, `${enemy.name} attacks for ${damage} damage!${window._godMode ? ' (GOD MODE - No damage taken)' : ''}`);
+
+      // Second Wind - trigger for next turn if dropped below threshold
+      const secondWindRelic = relics.find(r => r.type === 'second_wind');
+      if (secondWindRelic && !state.secondWindUsed) {
+        const hpPercent = state.player.hp / state.player.maxHp;
+        if (hpPercent < secondWindRelic.hpThreshold) {
+          state.secondWindUsed = true;
+          state.secondWindTriggered = true;
+          addLog(state, '💨 Second Wind will activate on your next turn!');
+        }
+      }
 
       // Smoke Bomb - chance to teleport when hit
       const smokeBombRelic = relics.find(r => r.type === 'evasive_teleport');

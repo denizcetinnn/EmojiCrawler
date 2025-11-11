@@ -7,8 +7,8 @@ export const FLOOR_2_BOSSES = [
   {
     name: 'The Forgotten King',
     type: 'undead',
-    hp: 48,
-    maxHp: 48,
+    hp: 75,
+    maxHp: 75,
     ap: 4,
     aiPersonality: AI_PERSONALITIES.BOSS,
     weapon: {
@@ -41,8 +41,8 @@ export const FLOOR_2_BOSSES = [
   {
     name: 'Abyssal Demon',
     type: 'demon',
-    hp: 50,
-    maxHp: 50,
+    hp: 78,
+    maxHp: 78,
     ap: 4,
     aiPersonality: AI_PERSONALITIES.BOSS,
     weapon: {
@@ -80,8 +80,8 @@ export const FLOOR_2_BOSSES = [
   {
     name: 'Ancient Lich King',
     type: 'undead',
-    hp: 45,
-    maxHp: 45,
+    hp: 70,
+    maxHp: 70,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.BOSS,
     weapon: {
@@ -114,8 +114,8 @@ export const FLOOR_2_BOSSES = [
   {
     name: 'Infernal Dragon',
     type: 'demon',
-    hp: 55,
-    maxHp: 55,
+    hp: 86,
+    maxHp: 86,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.BOSS,
     weapon: {
@@ -151,8 +151,8 @@ export const FLOOR_2_BOSSES = [
   {
     name: 'Void Emperor',
     type: 'demon',
-    hp: 52,
-    maxHp: 52,
+    hp: 81,
+    maxHp: 81,
     ap: 4,
     aiPersonality: AI_PERSONALITIES.BOSS,
     weapon: {

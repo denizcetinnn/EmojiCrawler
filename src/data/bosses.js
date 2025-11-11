@@ -4,8 +4,8 @@ export const BOSSES = [
     {
       name: 'The Corrupted Knight',
       type: 'undead',
-      hp: 30,
-      maxHp: 30,
+      hp: 45,
+      maxHp: 45,
       ap: 3,
       aiPersonality: AI_PERSONALITIES.BOSS,
       weapon: {
@@ -42,8 +42,8 @@ export const BOSSES = [
     {
       name: 'The Plague Doctor',
       type: 'humanoid',
-      hp: 25,
-      maxHp: 25,
+      hp: 38,
+      maxHp: 38,
       ap: 3,
       aiPersonality: AI_PERSONALITIES.BOSS,
       weapon: {
@@ -80,8 +80,8 @@ export const BOSSES = [
     {
       name: 'The Infernal Warden',
       type: 'demon',
-      hp: 35,
-      maxHp: 35,
+      hp: 52,
+      maxHp: 52,
       ap: 3,
       aiPersonality: AI_PERSONALITIES.BOSS,
       weapon: {

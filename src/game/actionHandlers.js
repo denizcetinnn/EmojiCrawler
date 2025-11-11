@@ -220,7 +220,7 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
       if (player.maxHp > 10) {
         updates.maxHp = player.maxHp - 10;
         updates.hp = Math.min(player.hp, updates.maxHp);
-        const weapon = getRandomWeapon(5); // Legendary weapon
+        const weapon = getRandomWeapon({ legendary: 1.0 }); // 100% legendary weapon
         setItemChoice({
           item: weapon,
           message: `The demon grins wickedly as you sign. You feel your life force drain away, but gain ${weapon.name}!`
@@ -311,7 +311,10 @@ export const handleRoomAction = (actionId, room, player, setPlayer, setDialogue,
 
     case 'summon_fight':
       const eliteEnemy = getRandomFloor2Enemy('late');
-      startCombat(eliteEnemy);
+      // Mark enemy as having legendary loot
+      eliteEnemy.isBoss = true;
+      eliteEnemy.legendaryWeapon = getRandomWeapon({ legendary: 1.0 }); // 100% legendary
+      startCombat(eliteEnemy, false); // Pass false for isBoss to avoid boss-specific mechanics
       return;
 
     case 'summon_disrupt':

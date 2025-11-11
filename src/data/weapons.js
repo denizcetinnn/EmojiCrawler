@@ -64,7 +64,7 @@ export const WEAPONS = [
   },
   {
     name: 'Greataxe',
-    damage: 10,
+    damage: 14,
     range: 1,
     apCost: 2,
     pattern: ATTACK_PATTERNS.CLEAVE,
@@ -116,7 +116,7 @@ export const WEAPONS = [
   },
   {
     name: 'Crossbow',
-    damage: 5,
+    damage: 7,
     range: 3,
     apCost: 2,
     pattern: ATTACK_PATTERNS.LINE,
@@ -141,7 +141,7 @@ export const WEAPONS = [
   },
   {
     name: 'Longbow',
-    damage: 6,
+    damage: 8,
     range: 3,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -155,7 +155,7 @@ export const WEAPONS = [
   // MAGIC WEAPONS
   {
     name: 'Fire Staff',
-    damage: 5,
+    damage: 7,
     range: 2,
     apCost: 2,
     pattern: ATTACK_PATTERNS.CROSS,
@@ -168,7 +168,7 @@ export const WEAPONS = [
   },
   {
     name: 'Ice Wand',
-    damage: 4,
+    damage: 6,
     range: 2,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -182,7 +182,7 @@ export const WEAPONS = [
   },
   {
     name: 'Lightning Rod',
-    damage: 6,
+    damage: 9,
     range: 3,
     apCost: 2,
     pattern: ATTACK_PATTERNS.LINE,
@@ -195,7 +195,7 @@ export const WEAPONS = [
   },
   {
     name: 'Meteor Staff',
-    damage: 9,
+    damage: 15,
     range: 2,
     apCost: 3,
     pattern: ATTACK_PATTERNS.AOE,
@@ -224,7 +224,7 @@ export const WEAPONS = [
   },
   {
     name: 'War Hammer',
-    damage: 9,
+    damage: 12,
     range: 1,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -264,7 +264,7 @@ export const WEAPONS = [
   },
   {
     name: 'Flail',
-    damage: 7,
+    damage: 10,
     range: 1,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -319,7 +319,7 @@ export const WEAPONS = [
   },
   {
     name: 'Blunderbuss',
-    damage: 8,
+    damage: 11,
     range: 1,
     apCost: 2,
     pattern: ATTACK_PATTERNS.CLEAVE,
@@ -346,7 +346,7 @@ export const WEAPONS = [
   // ADDITIONAL MAGIC WEAPONS
   {
     name: 'Poison Orb',
-    damage: 3,
+    damage: 5,
     range: 2,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -362,7 +362,7 @@ export const WEAPONS = [
   },
   {
     name: 'Arcane Tome',
-    damage: 7,
+    damage: 13,
     range: 3,
     apCost: 3,
     pattern: ATTACK_PATTERNS.AOE,
@@ -376,7 +376,7 @@ export const WEAPONS = [
   },
   {
     name: 'Void Staff',
-    damage: 8,
+    damage: 11,
     range: 2,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -390,7 +390,7 @@ export const WEAPONS = [
   },
   {
     name: 'Healing Staff',
-    damage: 2,
+    damage: 4,
     range: 2,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -409,7 +409,7 @@ export const WEAPONS = [
 export const LEGENDARY_WEAPONS = [
   {
     name: 'Shadow Blade',
-    damage: 10,
+    damage: 13,
     range: 1,
     apCost: 2,
     pattern: ATTACK_PATTERNS.SINGLE,
@@ -424,7 +424,7 @@ export const LEGENDARY_WEAPONS = [
   },
   {
     name: 'Plague Bow',
-    damage: 6,
+    damage: 8,
     range: 3,
     apCost: 2,
     pattern: ATTACK_PATTERNS.AOE,
@@ -441,7 +441,7 @@ export const LEGENDARY_WEAPONS = [
   },
   {
     name: 'Meteor Hammer',
-    damage: 12,
+    damage: 17,
     range: 2,
     apCost: 3,
     pattern: ATTACK_PATTERNS.AOE,
@@ -461,18 +461,58 @@ export const LEGENDARY_WEAPONS = [
 export const getRandomWeapon = (rarityWeights = { common: 0.5, rare: 0.35, epic: 0.15 }) => {
   const roll = Math.random();
   let rarity;
+  let threshold = 0;
 
-  if (roll < rarityWeights.common) {
-    rarity = 'common';
-  } else if (roll < rarityWeights.common + rarityWeights.rare) {
-    rarity = 'rare';
-  } else {
+  // Check for legendary first if specified
+  if (rarityWeights.legendary) {
+    threshold += rarityWeights.legendary;
+    if (roll < threshold) {
+      rarity = 'legendary';
+    }
+  }
+
+  // Then check other rarities
+  if (!rarity) {
+    if (rarityWeights.common) {
+      threshold += rarityWeights.common;
+      if (roll < threshold) {
+        rarity = 'common';
+      }
+    }
+  }
+
+  if (!rarity) {
+    if (rarityWeights.rare) {
+      threshold += rarityWeights.rare;
+      if (roll < threshold) {
+        rarity = 'rare';
+      }
+    }
+  }
+
+  if (!rarity) {
+    if (rarityWeights.epic) {
+      threshold += rarityWeights.epic;
+      if (roll < threshold) {
+        rarity = 'epic';
+      }
+    }
+  }
+
+  // Default to epic if no rarity was selected
+  if (!rarity) {
     rarity = 'epic';
   }
 
-  const filteredWeapons = WEAPONS.filter(w => w.rarity === rarity);
+  // Use appropriate weapon pool
+  const weaponPool = rarity === 'legendary' ? LEGENDARY_WEAPONS : WEAPONS;
+  const filteredWeapons = weaponPool.filter(w => w.rarity === rarity);
 
   if (filteredWeapons.length === 0) {
+    // Fallback: try legendary weapons if filtering failed
+    if (rarity === 'legendary' && LEGENDARY_WEAPONS.length > 0) {
+      return { ...LEGENDARY_WEAPONS[Math.floor(Math.random() * LEGENDARY_WEAPONS.length)], type: 'weapon' };
+    }
     // Fallback to any weapon
     return { ...WEAPONS[Math.floor(Math.random() * WEAPONS.length)], type: 'weapon' };
   }

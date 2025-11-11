@@ -48,52 +48,50 @@ export function getPlayerStartPosition(gridSize, enemyType = null) {
 export function getEnemyStartPosition(gridSize, enemyType, enemyIndex = 0) {
   const center = Math.floor(gridSize / 2);
 
-  // Define different spawn positions for multiple enemies
+  // Define spawn positions for multiple enemies (4th rank for backstab opportunities)
   const multiEnemyPositions = [
-    { x: gridSize - 1, y: center },     // Right center
-    { x: gridSize - 2, y: center - 1 }, // Right-top
-    { x: gridSize - 2, y: center + 1 }, // Right-bottom
-    { x: gridSize - 1, y: center - 1 }, // Far right-top
-    { x: gridSize - 1, y: center + 1 }, // Far right-bottom
+    { x: gridSize - 2, y: center },     // 4th rank center
+    { x: gridSize - 2, y: center - 1 }, // 4th rank top
+    { x: gridSize - 2, y: center + 1 }, // 4th rank bottom
+    { x: gridSize - 2, y: 0 },          // 4th rank far top
+    { x: gridSize - 2, y: gridSize - 1 }, // 4th rank far bottom
   ];
 
   switch (enemyType) {
     case 'spider':
-      // Spiders like corners - top right
-      // For multiple spiders, spread them along the top
+      // Spiders stay on back rank (hit-and-run personality)
+      // For multiple spiders, spread them along the back
       if (enemyIndex === 0) return { x: gridSize - 1, y: 0 };
-      if (enemyIndex === 1) return { x: gridSize - 2, y: 0 };
-      return { x: gridSize - 1, y: 1 };
+      if (enemyIndex === 1) return { x: gridSize - 1, y: gridSize - 1 };
+      return { x: gridSize - 1, y: center };
 
     case 'defensive':
-      // Defensive enemies start in corners or back positions
-      if (enemyIndex === 0) return { x: gridSize - 1, y: gridSize - 1 };
-      if (enemyIndex === 1) return { x: gridSize - 2, y: gridSize - 1 };
-      return { x: gridSize - 1, y: gridSize - 2 };
+      // Defensive enemies start 4th rank
+      if (enemyIndex === 0) return { x: gridSize - 2, y: center };
+      if (enemyIndex === 1) return { x: gridSize - 2, y: center - 1 };
+      return { x: gridSize - 2, y: center + 1 };
 
     case 'aggressive':
-      // Aggressive start right side, spread vertically
+      // Aggressive start 4th rank
       return multiEnemyPositions[enemyIndex % multiEnemyPositions.length];
 
     case 'ambusher':
-      // Ambushers start on right side, spread out
-      if (enemyIndex === 0) return { x: gridSize - 1, y: 1 };
-      if (enemyIndex === 1) return { x: gridSize - 1, y: gridSize - 2 };
-      return { x: gridSize - 2, y: 1 };
+      // Ambushers start 4th rank, spread out
+      if (enemyIndex === 0) return { x: gridSize - 2, y: 1 };
+      if (enemyIndex === 1) return { x: gridSize - 2, y: gridSize - 2 };
+      return { x: gridSize - 2, y: center };
 
     case 'swarm':
-      // Multiple enemies spawn in a group
-      const positions = [
-        { x: gridSize - 2, y: center - 1 },
-        { x: gridSize - 1, y: center },
-        { x: gridSize - 2, y: center + 1 },
-        { x: gridSize - 1, y: center - 1 },
-        { x: gridSize - 1, y: center + 1 },
-      ];
-      return positions[enemyIndex % positions.length];
+      // Multiple enemies spawn on 4th rank
+      return multiEnemyPositions[enemyIndex % multiEnemyPositions.length];
+
+    case 'boss':
+      // Bosses start 4th rank center (dominant but accessible)
+      if (enemyIndex === 0) return { x: gridSize - 2, y: center };
+      return multiEnemyPositions[enemyIndex % multiEnemyPositions.length];
 
     default:
-      // Default: right side, spread vertically for multiple enemies
+      // Default: 4th rank positions for backstab opportunities
       return multiEnemyPositions[enemyIndex % multiEnemyPositions.length];
   }
 }

@@ -9,8 +9,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Corrupted Mage',
     type: 'humanoid',
-    hp: 22,
-    maxHp: 22,
+    hp: 30,
+    maxHp: 30,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -30,8 +30,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Enraged Berserker',
     type: 'humanoid',
-    hp: 30,
-    maxHp: 30,
+    hp: 40,
+    maxHp: 40,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
@@ -52,8 +52,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Void Stalker',
     type: 'demon',
-    hp: 24,
-    maxHp: 24,
+    hp: 32,
+    maxHp: 32,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.AMBUSHER,
     weapon: {
@@ -74,8 +74,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Frost Golem',
     type: 'construct',
-    hp: 40,
-    maxHp: 40,
+    hp: 52,
+    maxHp: 52,
     ap: 1,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
@@ -96,8 +96,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Elder Necromancer',
     type: 'humanoid',
-    hp: 18,
-    maxHp: 18,
+    hp: 25,
+    maxHp: 25,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -119,8 +119,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Death Knight',
     type: 'undead',
-    hp: 35,
-    maxHp: 35,
+    hp: 46,
+    maxHp: 46,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -141,8 +141,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Void Wraith',
     type: 'demon',
-    hp: 25,
-    maxHp: 25,
+    hp: 34,
+    maxHp: 34,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.HIT_AND_RUN,
     weapon: {
@@ -162,8 +162,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Demon Hunter',
     type: 'humanoid',
-    hp: 28,
-    maxHp: 28,
+    hp: 38,
+    maxHp: 38,
     ap: 4,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
@@ -183,8 +183,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Vampire Lord',
     type: 'undead',
-    hp: 30,
-    maxHp: 30,
+    hp: 40,
+    maxHp: 40,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
@@ -204,8 +204,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Arcane Sentinel',
     type: 'construct',
-    hp: 38,
-    maxHp: 38,
+    hp: 50,
+    maxHp: 50,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -226,8 +226,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Hellhound',
     type: 'demon',
-    hp: 18,
-    maxHp: 18,
+    hp: 25,
+    maxHp: 25,
     ap: 3,
     aiPersonality: AI_PERSONALITIES.SWARM,
     weapon: {
@@ -248,8 +248,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Lich',
     type: 'undead',
-    hp: 22,
-    maxHp: 22,
+    hp: 30,
+    maxHp: 30,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -270,8 +270,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Infernal Executioner',
     type: 'demon',
-    hp: 45,
-    maxHp: 45,
+    hp: 59,
+    maxHp: 59,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
@@ -292,8 +292,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Abyssal Cultist',
     type: 'humanoid',
-    hp: 20,
-    maxHp: 20,
+    hp: 27,
+    maxHp: 27,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.DEFENSIVE,
     weapon: {
@@ -313,8 +313,8 @@ export const FLOOR_2_ENEMIES = [
   {
     name: 'Bone Dragon',
     type: 'undead',
-    hp: 42,
-    maxHp: 42,
+    hp: 55,
+    maxHp: 55,
     ap: 2,
     aiPersonality: AI_PERSONALITIES.AGGRESSIVE,
     weapon: {
