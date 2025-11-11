@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGameState } from '../hooks/useGameState';
 import { useGameActions } from '../hooks/useGameActions';
 import { initializeDebugMode } from '../utils/debug';
@@ -22,6 +22,10 @@ const Game = () => {
   const state = useGameState();
   const actions = useGameActions(state);
   const [animations, setAnimations] = useState([]);
+  const stateRef = useRef(state);
+
+  // Update ref on every render to always have current state
+  stateRef.current = state;
 
   const {
     gameState,
@@ -92,7 +96,7 @@ const Game = () => {
 
   // Initialize debug mode (development only)
   useEffect(() => {
-    initializeDebugMode(state, actions);
+    initializeDebugMode(() => stateRef.current, actions);
   }, []);
 
   return (

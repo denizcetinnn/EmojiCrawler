@@ -2,6 +2,7 @@ import { Heart, Zap, Swords, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Target }
 import CombatLog from './CombatLog';
 import { DIRECTIONS } from '../../game/gridCombat';
 import { getWeaponAnimationType, getWeaponEmoji } from './CombatAnimation';
+import { makeEnemyDecision } from '../../game/combatAI';
 import '../../styles/combat-animations.css';
 
 const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, onTeleport, onToggleTeleportMode, animations, setAnimations }) => {
@@ -84,7 +85,6 @@ const CombatScreen = ({ combatState, onMove, onAttack, onEndTurn, onTeleport, on
   const getEnemyIntent = (enemy) => {
     if (!canSeeIntents) return null;
 
-    const { makeEnemyDecision } = require('../../game/combatAI');
     const actions = makeEnemyDecision(enemy, player, enemies, grid, gridSize);
 
     if (!actions || actions.length === 0) return 'Idle';

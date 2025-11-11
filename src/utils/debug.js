@@ -1,9 +1,23 @@
 // Debug utilities for testing
 // Access via window.debug in browser console
 
-export const initializeDebugMode = (state, actions) => {
+import { WEAPONS } from '../data/weapons';
+import { ARMOR } from '../data/armor';
+import { RELICS } from '../data/relics';
+import { ENEMIES, createEnemyInstance } from '../data/enemies';
+import { FLOOR_2_ENEMIES, createFloor2EnemyInstance } from '../data/floor2Enemies';
+import { BOSSES } from '../data/bosses';
+import { FLOOR_2_BOSSES } from '../data/floor2Bosses';
+import { generateFloor } from '../game/dungeonGenerator';
+
+export const initializeDebugMode = (getState, actions) => {
   // Only enable in development
   if (import.meta.env.MODE !== 'development') {
+    return;
+  }
+
+  // Prevent re-initialization
+  if (window.debug) {
     return;
   }
 
@@ -67,33 +81,38 @@ Examples:
 
     // Resource commands
     gold(amount = 100) {
+      const state = getState();
       state.setPlayer(p => ({ ...p, gold: p.gold + amount }));
       console.log(`✅ Added ${amount} gold`);
     },
 
     xp(amount = 100) {
+      const state = getState();
       state.setPlayer(p => ({ ...p, xp: p.xp + amount }));
       console.log(`✅ Added ${amount} XP`);
     },
 
     skillPoints(amount = 5) {
+      const state = getState();
       state.setPlayer(p => ({ ...p, skillPoints: p.skillPoints + amount }));
       console.log(`✅ Added ${amount} skill points`);
     },
 
     keys(amount = 5) {
+      const state = getState();
       state.setPlayer(p => ({ ...p, keys: p.keys + amount }));
       console.log(`✅ Added ${amount} keys`);
     },
 
     heal() {
+      const state = getState();
       state.setPlayer(p => ({ ...p, hp: p.maxHp }));
       console.log(`✅ Healed to full HP`);
     },
 
     // Item commands
     weapon(name) {
-      const { WEAPONS } = require('../data/weapons');
+      const state = getState();
       const weapon = WEAPONS.find(w => w.name.toLowerCase().includes(name.toLowerCase()));
       if (weapon) {
         state.setPlayer(p => ({
@@ -107,7 +126,7 @@ Examples:
     },
 
     armor(name) {
-      const { ARMOR } = require('../data/armor');
+      const state = getState();
       const armor = ARMOR.find(a => a.name.toLowerCase().includes(name.toLowerCase()));
       if (armor) {
         state.setPlayer(p => ({
@@ -121,7 +140,7 @@ Examples:
     },
 
     relic(name) {
-      const { RELICS } = require('../data/relics');
+      const state = getState();
       const relic = RELICS.find(r => r.name.toLowerCase().includes(name.toLowerCase()));
       if (relic) {
         state.setPlayer(p => ({
@@ -135,22 +154,19 @@ Examples:
     },
 
     listWeapons() {
-      const { WEAPONS } = require('../data/weapons');
       console.table(WEAPONS.map(w => ({ name: w.name, rarity: w.rarity, damage: w.damage })));
     },
 
     listArmor() {
-      const { ARMOR } = require('../data/armor');
       console.table(ARMOR.map(a => ({ name: a.name, rarity: a.rarity, defense: a.defense })));
     },
 
     listRelics() {
-      const { RELICS } = require('../data/relics');
       console.table(RELICS.map(r => ({ name: r.name, rarity: r.rarity, effect: r.effect })));
     },
 
     allWeapons() {
-      const { WEAPONS } = require('../data/weapons');
+      const state = getState();
       state.setPlayer(p => ({
         ...p,
         inventory: [...p.inventory, ...WEAPONS.map(w => ({ ...w, type: 'weapon' }))]
@@ -159,7 +175,7 @@ Examples:
     },
 
     allArmor() {
-      const { ARMOR } = require('../data/armor');
+      const state = getState();
       state.setPlayer(p => ({
         ...p,
         inventory: [...p.inventory, ...ARMOR.map(a => ({ ...a, type: 'armor' }))]
@@ -168,7 +184,7 @@ Examples:
     },
 
     allRelics() {
-      const { RELICS } = require('../data/relics');
+      const state = getState();
       state.setPlayer(p => ({
         ...p,
         relics: [...RELICS.map(r => ({ ...r }))]
@@ -178,49 +194,52 @@ Examples:
 
     // Combat commands
     enemy(name, count = 1) {
-      if (state.gameState !== 'playing') {
-        console.log('❌ Must be in exploration mode (not combat or game over)');
-        return;
-      }
-
-      // Try Floor 1 enemies first
-      const { ENEMIES } = require('../data/enemies');
-      const { createEnemyInstance } = require('../data/enemies');
-      let enemy = ENEMIES.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
-      let createInstance = createEnemyInstance;
-
-      // If not found, try Floor 2 enemies
-      if (!enemy) {
-        const { FLOOR_2_ENEMIES, createFloor2EnemyInstance } = require('../data/floor2Enemies');
-        enemy = FLOOR_2_ENEMIES.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
-        createInstance = createFloor2EnemyInstance;
-      }
-
-      if (enemy) {
-        const enemies = [];
-        for (let i = 0; i < count; i++) {
-          enemies.push(createInstance(enemy));
+      try {
+        const state = getState();
+        if (state.gameState !== 'playing') {
+          console.log('❌ Must be in exploration mode (not combat or game over)');
+          console.log(`Current gameState: ${state.gameState}`);
+          return;
         }
-        actions.startCombat(enemies.length === 1 ? enemies[0] : enemies, false);
-        console.log(`✅ Starting combat with ${count}x ${enemy.name}`);
-      } else {
-        console.log(`❌ Enemy not found. Try: debug.listEnemies() or debug.listFloor2Enemies()`);
+
+        // Try Floor 1 enemies first
+        let enemy = ENEMIES.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
+        let createInstance = createEnemyInstance;
+
+        // If not found, try Floor 2 enemies
+        if (!enemy) {
+          enemy = FLOOR_2_ENEMIES.find(e => e.name.toLowerCase().includes(name.toLowerCase()));
+          createInstance = createFloor2EnemyInstance;
+        }
+
+        if (enemy) {
+          const enemies = [];
+          for (let i = 0; i < count; i++) {
+            enemies.push(createInstance(enemy));
+          }
+          actions.startCombat(enemies.length === 1 ? enemies[0] : enemies, false);
+          console.log(`✅ Starting combat with ${count}x ${enemy.name}`);
+        } else {
+          console.log(`❌ Enemy not found. Try: debug.listEnemies() or debug.listFloor2Enemies()`);
+        }
+      } catch (error) {
+        console.error('❌ Error spawning enemy:', error);
       }
     },
 
     boss(name) {
+      const state = getState();
       if (state.gameState !== 'playing') {
         console.log('❌ Must be in exploration mode (not combat or game over)');
+        console.log(`Current gameState: ${state.gameState}`);
         return;
       }
 
       // Try Floor 1 bosses first
-      const { BOSSES } = require('../data/bosses');
       let boss = BOSSES.find(b => b.name.toLowerCase().includes(name.toLowerCase()));
 
       // If not found, try Floor 2 bosses
       if (!boss) {
-        const { FLOOR_2_BOSSES } = require('../data/floor2Bosses');
         boss = FLOOR_2_BOSSES.find(b => b.name.toLowerCase().includes(name.toLowerCase()));
       }
 
@@ -234,7 +253,6 @@ Examples:
     },
 
     listEnemies() {
-      const { ENEMIES } = require('../data/enemies');
       console.table(ENEMIES.map(e => ({
         name: e.name,
         hp: e.hp,
@@ -244,7 +262,6 @@ Examples:
     },
 
     listFloor2Enemies() {
-      const { FLOOR_2_ENEMIES } = require('../data/floor2Enemies');
       console.table(FLOOR_2_ENEMIES.map(e => ({
         name: e.name,
         hp: e.hp,
@@ -254,8 +271,6 @@ Examples:
     },
 
     listBosses() {
-      const { BOSSES } = require('../data/bosses');
-      const { FLOOR_2_BOSSES } = require('../data/floor2Bosses');
       const allBosses = [...BOSSES, ...FLOOR_2_BOSSES];
       console.table(allBosses.map(b => ({
         name: b.name,
@@ -267,6 +282,7 @@ Examples:
 
     // Stat commands
     levelUp(times = 1) {
+      const state = getState();
       state.setPlayer(p => ({
         ...p,
         level: p.level + times,
@@ -278,6 +294,7 @@ Examples:
     },
 
     maxStats() {
+      const state = getState();
       state.setPlayer(p => ({
         ...p,
         stats: { str: 10, dex: 10, int: 10, cha: 10 }
@@ -286,6 +303,7 @@ Examples:
     },
 
     stat(stat, value) {
+      const state = getState();
       if (!['str', 'dex', 'int', 'cha'].includes(stat)) {
         console.log(`❌ Invalid stat. Use: str, dex, int, or cha`);
         return;
@@ -299,7 +317,7 @@ Examples:
 
     // World commands
     floor(number) {
-      const { generateFloor } = require('../game/dungeonGenerator');
+      const state = getState();
       const layout = generateFloor(number);
       state.setFloorLayout(layout);
       state.setCurrentFloor(number);
@@ -310,6 +328,7 @@ Examples:
     },
 
     revealMap() {
+      const state = getState();
       state.setPlayer(p => ({ ...p, hasMap: true }));
       state.setFloorLayout(layout =>
         layout.map(room => ({ ...room, visited: true }))
@@ -318,6 +337,7 @@ Examples:
     },
 
     teleport(x, y) {
+      const state = getState();
       state.setCurrentRoomPos({ x, y });
       const room = state.floorLayout.find(r => r.x === x && r.y === y);
       if (room) {
@@ -338,6 +358,7 @@ Examples:
     },
 
     god() {
+      const state = getState();
       if (!window._godMode) {
         window._godMode = true;
         state.setPlayer(p => ({ ...p, maxHp: 99999, hp: 99999 }));
@@ -351,6 +372,7 @@ Examples:
 
     // State inspection
     player() {
+      const state = getState();
       console.log('Current Player State:', state.player);
       return state.player;
     },
@@ -362,6 +384,7 @@ Examples:
     },
 
     enemies() {
+      const state = getState();
       if (state.combatState) {
         console.log('Enemies in Combat:', state.combatState.enemies);
         return state.combatState.enemies;
@@ -371,6 +394,7 @@ Examples:
     },
 
     save() {
+      const state = getState();
       const saveData = {
         player: state.player,
         floorLayout: state.floorLayout,
@@ -383,6 +407,7 @@ Examples:
     },
 
     export() {
+      const state = getState();
       const saveData = {
         player: state.player,
         floorLayout: state.floorLayout,
